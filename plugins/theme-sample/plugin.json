@@ -1,0 +1,10 @@
+{
+  "id": "theme-sample",
+  "name": "Midnight Theme",
+  "version": "1.0.0",
+  "description": "A sample plugin-contributed color theme: registers a dark \"Midnight\" theme that can be picked from the Theme dropdown in settings once enabled.",
+  "entry": "index.js",
+  "contributes": {
+    "themes": [{ "id": "midnight", "label": "Midnight" }]
+  }
+}

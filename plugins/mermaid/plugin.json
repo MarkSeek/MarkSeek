@@ -1,0 +1,10 @@
+{
+  "id": "mermaid",
+  "name": "Mermaid Diagrams",
+  "version": "1.0.0",
+  "description": "Render ```mermaid fenced code blocks as live diagrams in the editor. Type ::mermaid to insert one, or double-click a diagram to edit its source.",
+  "entry": "index.js",
+  "contributes": {
+    "editorExtensions": [{ "type": "node", "name": "mermaid" }]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "excalidraw",
+  "name": "Excalidraw Canvas",
+  "version": "1.3.0",
+  "description": "Embed a drawable Excalidraw canvas in Markdown. The scene is persisted as JSON inside the note (fenced ```excalidraw). Type ::excalidraw to insert one quickly.",
+  "entry": "index.js",
+  "contributes": {
+    "editorExtensions": [{ "type": "node", "name": "excalidraw" }]
+  }
+}

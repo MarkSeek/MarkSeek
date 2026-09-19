@@ -1,0 +1,10 @@
+{
+  "id": "custom-block",
+  "name": "Callout Blocks",
+  "version": "1.0.0",
+  "description": "Extends Markdown with extra display elements: registers a callout block (fenced ```callout <type>). Type ::callout to insert one quickly.",
+  "entry": "index.js",
+  "contributes": {
+    "editorExtensions": [{ "type": "node", "name": "callout" }]
+  }
+}

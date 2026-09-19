@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      The first-paint script is injected here by the `markseek-first-paint`
+      plugin in vite.config.ts, which compiles src/firstPaint.ts into a
+      standalone IIFE. Keeping it out of index.html itself is what lets the
+      theme list and the auto-zoom algorithm have exactly one definition.
+    -->
+    <!--first-paint-->
+
+    <link rel="icon" type="image/svg+xml" href="/markseek.svg" />
+    <link rel="apple-touch-icon" href="/markseek.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06b6d4" />
+    <title>MarkSeek</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
