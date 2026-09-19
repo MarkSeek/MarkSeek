@@ -23,6 +23,10 @@ MarkSeek is an AI-native knowledge workspace built around Markdown. Capture idea
 
 More than a note-taking app, MarkSeek turns isolated Markdown files into a living, queryable knowledge network. Every note becomes part of a larger context, so AI can understand, reason, and act on your behalf.
 
+<p align="center">
+  <img src="screenshots/editor-readme-split.png" alt="MarkSeek — three-panel workspace with the Markdown editor" width="720" />
+</p>
+
 ## Features
 
 - **Markdown-First, WYSIWYG Editor** — Built on [Milkdown](https://milkdown.dev) (Crepe preset, Nord theme, CommonMark). Write in plain text with a clean, distraction-free experience, slash commands, and syntax highlighting.

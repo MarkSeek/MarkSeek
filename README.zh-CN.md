@@ -23,6 +23,10 @@ MarkSeek 是一个以 Markdown 为核心的、原生 AI 知识工作台。在这
 
 它不只是一个笔记软件，而是把零散的 Markdown 文件变成一张鲜活的、可检索的知识网络。每一条笔记都成为更大语境的一部分，AI 因此能理解、推理，并替你行动。
 
+<p align="center">
+  <img src="screenshots/editor-readme-split.png" alt="MarkSeek — 三栏工作区与 Markdown 编辑器" width="720" />
+</p>
+
 ## 功能特性
 
 - **Markdown 优先的所见即所得编辑器** — 基于 [Milkdown](https://milkdown.dev)（Crepe 预设、Nord 主题、CommonMark）。纯净、无干扰的写作体验，支持斜杠命令与语法高亮。
