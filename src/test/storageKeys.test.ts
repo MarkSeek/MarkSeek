@@ -6,8 +6,15 @@
 //  2. Nothing outside `utils/storage.ts` may call `localStorage` /
 //     `sessionStorage` directly: corrupt JSON, private mode and quota errors
 //     are handled in exactly one place.
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { readSources } from './collectSources'
+
+// Normalise to a forward-slash relative path so the guardrails below work on
+// Windows too (collectSources returns OS-native, backslash paths).
+function rel(file: string): string {
+  return path.relative(process.cwd(), file).split(path.sep).join('/')
+}
 
 // Literal keys passed to localStorage/sessionStorage, plus keys held in
 // SCREAMING_CASE `*_KEY` / `*_PREFIX` constants.
@@ -63,10 +70,10 @@ describe('storage keys', () => {
   it('keeps pre-rename brand keys inside the known allowlist', () => {
     const offenders: string[] = []
     for (const { file, source } of readSources()) {
-      if (file.includes('/src/test/')) continue
+      const relative = rel(file)
+      if (relative.startsWith('src/test/')) continue
       if (!LEGACY_BRAND_RE.test(source)) continue
       LEGACY_BRAND_RE.lastIndex = 0
-      const relative = file.replace(process.cwd() + '/', '')
       if (!LEGACY_BRAND_ALLOWLIST.includes(relative)) offenders.push(relative)
     }
     expect(offenders).toEqual([])
@@ -76,9 +83,9 @@ describe('storage keys', () => {
     const offenders: string[] = []
     for (const { file, source } of readSources()) {
       // Test helpers and the guardrails themselves legitimately poke at storage.
-      if (file.includes('/src/test/')) continue
-      if (file.includes('__tests__')) continue
-      const relative = file.replace(process.cwd() + '/', '')
+      const relative = rel(file)
+      if (relative.startsWith('src/test/')) continue
+      if (relative.includes('__tests__')) continue
       if (relative === STORAGE_LAYER) continue
       if (RAW_STORAGE_RE.test(source)) offenders.push(relative)
       RAW_STORAGE_RE.lastIndex = 0

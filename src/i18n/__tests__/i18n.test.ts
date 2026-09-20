@@ -26,7 +26,7 @@ describe('t', () => {
   it('replaces every occurrence of a variable', () => {
     setLang('en')
     expect(t('vault.pickHint', { name: 'Notes' })).toBe(
-      'Selected folder "Notes". Please enter its full absolute path in the box above, then confirm.',
+      'Selected folder "Notes". Web browsers cannot read the full folder path for security reasons, so the name alone will not work. Please enter the full absolute path manually: in File Explorer, hold Shift, right-click the folder, choose "Copy as path", paste it into the box above, then confirm.',
     )
   })
 
