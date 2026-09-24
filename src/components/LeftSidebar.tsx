@@ -202,7 +202,7 @@ export default function LeftSidebar({
               title={t('vault.switchHint')}
               onClick={() => setSwitchOpen(true)}
             >
-              <Icon name="panel-toggle" size={16} />
+              <Icon name="vault" size={16} />
             </button>
             <span className="sidebar-vault-name">{vaultPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()}</span>
           </div>
