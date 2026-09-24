@@ -13,6 +13,19 @@
   --app-zoom: 100%;
   --app-zoom-scale: 1;
 
+  /* Centered reading column. The column never gets narrower than
+     --editor-content-min-width (comfortable reading width), and the side
+     gutters never exceed --editor-gutter-max, so a very wide center panel does
+     not produce huge empty margins. */
+  --editor-content-min-width: 820px;
+  --editor-gutter-max: 140px;
+
+  /* Inner horizontal padding of the reading column. ProseMirror keeps Crepe's
+     120px so the floating block handles (which sit ~82px left of a block) have
+     room; the diary date banner mirrors the same value so its text lines up with
+     the body text instead of sticking out 120px to the left. */
+  --editor-content-padding-x: 120px;
+
   /* Background */
   --bg-root: #f3efec;
   --bg-sidebar: #efeae7;
@@ -1908,11 +1921,15 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 
 /* Date banner. Sits outside .diary-scroll, so it never scrolls away, and
    outside Crepe's subtree, so it is not part of the markdown document.
-   The horizontal padding mirrors Crepe's .ProseMirror (60px 120px) so the
-   date lines up with the body text underneath it. */
+   It shares the editor's centered reading column AND its inner horizontal
+   padding: the same width formula + auto margins put the column in the same
+   place, and --editor-content-padding-x mirrors ProseMirror's 120px, so the
+   date lines up exactly with the body text (and the nav with its right edge). */
 .diary_head_title {
   flex: none;
-  padding: 22px 120px 16px;
+  padding: 22px var(--editor-content-padding-x, 120px) 16px;
+  width: min(100%, max(var(--editor-content-min-width, 820px), calc(100% - 2 * var(--editor-gutter-max, 140px))));
+  margin: 0 auto;
   background: var(--bg-content);
   font-family: var(--font-ui);
   user-select: none;
@@ -2003,12 +2020,26 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 
 .editor-area .milkdown .ProseMirror {
   padding-top: 24px;
+  /* Horizontal padding (Crepe default 120px) is kept on purpose: the block
+     handles float ~82px to the left of a block, so a smaller inset would push
+     them into the outer gutter (and clip on narrow panels). Exposed as a
+     variable so the diary date banner can mirror it exactly. */
+  padding-left: var(--editor-content-padding-x, 120px);
+  padding-right: var(--editor-content-padding-x, 120px);
 }
 
 /* Unify Crepe editor colors with the center panel theme (switches with data-theme) */
 .editor-area .milkdown {
   --crepe-color-background: var(--bg-content);
   --crepe-color-on-background: var(--text-primary);
+  /* Centered reading column with a capped gutter: keep a comfortable line
+     length (--editor-content-min-width) but stop the side margins from growing
+     once they hit --editor-gutter-max, so a wide panel does not leave huge empty
+     space. Column width = min(100%, max(min-width, panel - 2*gutter-max));
+     margin auto centers it. The virtual cursor stays correct: it is positioned
+     relative to .milkdown (its offsetParent) via (caretRect.left - hostRect.left)/scale. */
+  width: min(100%, max(var(--editor-content-min-width, 820px), calc(100% - 2 * var(--editor-gutter-max, 140px))));
+  margin: 0 auto;
   --crepe-color-surface: var(--bg-content);
   --crepe-color-surface-low: var(--crepe-surface-low);
   --crepe-color-on-surface: var(--text-primary);
