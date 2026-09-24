@@ -31,6 +31,7 @@
   --text-primary: #3b3b3b;
   --text-secondary: #6b6b6b;
   --text-tertiary: #9a9a9a;
+  --text-quaternary: #b3b3b3;
   --text-on-accent: #ffffff;
 
   /* Accent color (warm orange-brown, replacing the original cyan-blue) */
@@ -1118,7 +1119,7 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
   height: 28px;
   padding: 0 13px 0 8px;
   font-size: 12px;
-  color: var(--text-primary);
+  color: var(--text-tertiary);
   cursor: pointer;
   border-radius: 6px;
   white-space: nowrap;
@@ -1167,7 +1168,7 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
   opacity: 0.4;
 }
 
-.tab-icon { display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); }
+.tab-icon { display: flex; align-items: center; justify-content: center; color: var(--text-quaternary); }
 .editor-tabs .tab.active .tab-icon { color: var(--accent-hover); }
 .tab-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .tab-dropdown { font-size: 9px; }
