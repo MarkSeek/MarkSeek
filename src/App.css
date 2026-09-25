@@ -410,6 +410,7 @@ body {
 /* Grayed Vault path pinned at the bottom of the sidebar.
    margin-top:auto keeps it at the bottom even when the note tree is collapsed. */
 .sidebar-vault-path {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -424,7 +425,7 @@ body {
   opacity: 0.7;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
   user-select: text;
   transition: opacity 0.15s;
 }
@@ -465,6 +466,83 @@ body {
 .sidebar-vault-icon:focus-visible {
   outline: 2px solid var(--accent, #06b6d4);
   outline-offset: 2px;
+}
+
+/* "+" button on the right of the vault path: opens the new-file popup menu. */
+.sidebar-new-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sidebar-new-btn:hover,
+.sidebar-new-btn.active {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.06));
+  opacity: 1;
+}
+
+.sidebar-new-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Full-screen click-catcher that closes the popup when clicking outside. */
+.new-file-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+/* Popup menu anchored above the "+" button. */
+.new-file-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 8px;
+  z-index: 100;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--bg-content);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.new-file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.new-file-item:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.06));
+}
+
+.new-file-item svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .sidebar-vault-icon:hover {

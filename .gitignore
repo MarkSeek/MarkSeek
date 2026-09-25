@@ -7,6 +7,7 @@ dist/
 # app data
 notes/
 .markseek
+.codebuddy
 
 # Electron-forge packaging output
 out/

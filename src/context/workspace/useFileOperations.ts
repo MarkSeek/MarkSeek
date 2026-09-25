@@ -11,6 +11,7 @@ import {
   moveFileOnDisk,
   readFile,
   writeFile,
+  type TreeNode,
 } from '../../api/files'
 import { t } from '../../i18n'
 import type { RecentItem } from '../../utils/recentStorage'
@@ -33,7 +34,7 @@ export interface FileOperationsApi {
   closeTab: (id: string, skipSave?: boolean) => Promise<void>
   switchTab: (id: string) => Promise<void>
   saveFile: (id: string) => Promise<void>
-  createFile: (targetDir?: string) => Promise<void>
+  createFile: (targetDir?: string, ext?: 'md' | 'excalidraw') => Promise<void>
   createFolder: (targetDir?: string) => Promise<void>
   deleteFile: (id: string) => Promise<void>
   moveFile: (id: string, targetDir?: string) => Promise<void>
@@ -42,16 +43,35 @@ export interface FileOperationsApi {
   reorderTabs: (fromIndex: number, toIndex: number) => void
 }
 
-/** Directory a new entry goes into when the caller did not name one. */
-function parentDirOf(selectedNodeId: string | null): string {
+/**
+ * Directory a new entry goes into when the caller did not name one.
+ * - An explicit `targetDir` is used as-is.
+ * - A selected folder becomes the target (the new file lands inside it).
+ * - A selected file uses its parent directory.
+ * - Nothing selected → the vault root ('').
+ */
+function resolveTargetDir(
+  targetDir: string | undefined,
+  selectedNodeId: string | null,
+  tree: TreeNode[],
+): string {
+  if (targetDir !== undefined) return targetDir
   if (!selectedNodeId) return ''
-  return selectedNodeId.substring(0, selectedNodeId.lastIndexOf('/'))
+  const node = findNode(tree, selectedNodeId)
+  if (!node) return ''
+  if (node.type === 'folder') return node.id
+  const idx = selectedNodeId.lastIndexOf('/')
+  return idx >= 0 ? selectedNodeId.substring(0, idx) : ''
 }
 
 /** New notes always start out as Markdown so they open in the editor. */
 function markdownName(base: string): string {
   return `${base}.md`
 }
+
+/** Minimal valid Excalidraw document so a fresh canvas file opens without error. */
+const EMPTY_EXCALIDRAW_SCENE =
+  '{"type":"excalidraw","version":2,"source":"https://excalidraw.com","elements":[],"appState":{"viewBackgroundColor":"#ffffff"},"files":{}}'
 
 /** Pick a name that does not clash with an existing sibling. */
 function uniqueName(base: string, taken: Set<string>, withSuffix: (n: number) => string): string {
@@ -151,24 +171,32 @@ export function useFileOperations({
   )
 
   const createFile = useCallback(
-    async (targetDir?: string) => {
-      const parentPath = targetDir ?? parentDirOf(getState().selectedNodeId)
+    async (targetDir?: string, ext: 'md' | 'excalidraw' = 'md') => {
+      const parentPath = resolveTargetDir(targetDir, getState().selectedNodeId, getTree())
       const targetChildren =
         (parentPath ? findNodeChildren(getTree(), parentPath) : getTree()[0]?.children) ?? []
       const existingNames = new Set(
         targetChildren.filter((c) => c.type === 'file').map((c) => c.name),
       )
       const baseName = t('doc.newNoteName')
-      const fileName = uniqueName(
-        markdownName(baseName),
-        existingNames,
-        // The de-duplicating counter goes before the extension: "Note (2).md".
-        (n) => markdownName(`${baseName} (${n})`),
-      )
+      const fileName =
+        ext === 'excalidraw'
+          ? uniqueName(
+              `${baseName}.excalidraw`,
+              existingNames,
+              (n) => `${baseName} (${n}).excalidraw`,
+            )
+          : uniqueName(
+              markdownName(baseName),
+              existingNames,
+              // The de-duplicating counter goes before the extension: "Note (2).md".
+              (n) => markdownName(`${baseName} (${n})`),
+            )
+      const content = ext === 'excalidraw' ? EMPTY_EXCALIDRAW_SCENE : t('doc.newNoteContent')
       const filePath = parentPath ? `${parentPath}/${fileName}` : fileName
 
       try {
-        await writeFile(filePath, t('doc.newNoteContent'))
+        await writeFile(filePath, content)
         // Patch the tree locally: a refetch would jump the scroll position.
         updateTree((prev) =>
           insertNode(prev, parentPath, { id: filePath, name: fileName, type: 'file' }),
@@ -183,7 +211,7 @@ export function useFileOperations({
 
   const createFolder = useCallback(
     async (targetDir?: string) => {
-      const parentPath = targetDir ?? parentDirOf(getState().selectedNodeId)
+      const parentPath = resolveTargetDir(targetDir, getState().selectedNodeId, getTree())
       const targetChildren =
         (parentPath ? findNodeChildren(getTree(), parentPath) : getTree()[0]?.children) ?? []
       const existingNames = new Set(

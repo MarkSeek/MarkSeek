@@ -21,10 +21,11 @@ export default function LeftSidebar({
   leftOpen: boolean
   onToggleLeft: () => void
 }) {
-  const { openCalendar, openLiteApp, openTodayNote, openDiary, taskVersion } = useWorkspace()
+  const { openCalendar, openLiteApp, openTodayNote, openDiary, taskVersion, createFile } = useWorkspace()
   const { vaultPath } = useSettings()
   const [switchOpen, setSwitchOpen] = useState(false)
   const [calOpen, setCalOpen] = useState(false)
+  const [newMenuOpen, setNewMenuOpen] = useState(false)
   // collapse/expand state of each sidebar tree-label group
   const [collapsed, setCollapsed] = useState<{ recent: boolean; allNotes: boolean }>({
     recent: false,
@@ -205,6 +206,58 @@ export default function LeftSidebar({
               <Icon name="vault" size={16} />
             </button>
             <span className="sidebar-vault-name">{vaultPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()}</span>
+            <button
+              type="button"
+              className={`sidebar-new-btn${newMenuOpen ? ' active' : ''}`}
+              aria-label={t('sidebar.newFile')}
+              title={t('sidebar.newFile')}
+              onClick={() => setNewMenuOpen((v) => !v)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                color="currentColor"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12.001 5.00003V19.002" />
+                <path d="M19.002 12.002L4.99998 12.002" />
+              </svg>
+            </button>
+            {newMenuOpen && (
+              <>
+                <div className="new-file-backdrop" onClick={() => setNewMenuOpen(false)} />
+                <div className="new-file-menu" role="menu">
+                  <button
+                    type="button"
+                    className="new-file-item"
+                    onClick={() => {
+                      setNewMenuOpen(false)
+                      void createFile(undefined, 'md')
+                    }}
+                  >
+                    <Icon name="file" size={16} />
+                    <span>{t('sidebar.newMarkdown')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="new-file-item"
+                    onClick={() => {
+                      setNewMenuOpen(false)
+                      void createFile(undefined, 'excalidraw')
+                    }}
+                  >
+                    <Icon name="excalidraw" size={16} />
+                    <span>{t('sidebar.newExcalidraw')}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
       )}
       {switchOpen && <VaultSwitchDialog onClose={() => setSwitchOpen(false)} />}

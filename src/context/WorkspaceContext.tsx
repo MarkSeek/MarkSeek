@@ -40,7 +40,7 @@ export interface WorkspaceContextValue {
   switchTab: (id: string) => Promise<void>
   updateContent: (id: string, content: string) => void
   saveFile: (id: string) => Promise<void>
-  createFile: (targetDir?: string) => Promise<void>
+  createFile: (targetDir?: string, ext?: 'md' | 'excalidraw') => Promise<void>
   createFolder: (targetDir?: string) => Promise<void>
   deleteFile: (id: string) => Promise<void>
   moveFile: (id: string, targetDir?: string) => Promise<void>
