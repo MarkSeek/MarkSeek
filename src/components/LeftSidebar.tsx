@@ -8,6 +8,8 @@ import { loadMonthTasks } from '../api/tasks'
 import { Icon } from './icons/Icon'
 import { t } from '../i18n'
 import VaultSwitchDialog from './VaultSwitchDialog'
+import SyncDialog from './SyncDialog'
+import { useSync } from '../hooks/useSync'
 import { dateToYmd, partsToYmd } from '../utils/date'
 import { buildMonthGrid, type MonthCell } from '../utils/monthGrid'
 
@@ -23,7 +25,9 @@ export default function LeftSidebar({
 }) {
   const { openCalendar, openLiteApp, openTodayNote, openDiary, taskVersion, createFile } = useWorkspace()
   const { vaultPath } = useSettings()
+  const { status } = useSync()
   const [switchOpen, setSwitchOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
   const [calOpen, setCalOpen] = useState(false)
   const [newMenuOpen, setNewMenuOpen] = useState(false)
   // collapse/expand state of each sidebar tree-label group
@@ -193,9 +197,15 @@ export default function LeftSidebar({
           <TreeList />
         </div>
       )}
-      {/* Vault path footer: pinned to the bottom of the sidebar */}
+      {/* Vault path footer: pinned to the bottom of the sidebar.
+          The data-sync-state attribute drives the vault icon + name colors so
+          the git sync state is visible at a glance (see App.css). */}
       {vaultPath && (
-          <div className="sidebar-vault-path" title={vaultPath}>
+          <div
+            className="sidebar-vault-path"
+            title={`${vaultPath}\n${t(`sync.state.${status?.state ?? 'no-repo'}`)}`}
+            data-sync-state={status?.state ?? 'no-repo'}
+          >
             <button
               type="button"
               className="sidebar-vault-icon"
@@ -205,7 +215,21 @@ export default function LeftSidebar({
             >
               <Icon name="vault" size={16} />
             </button>
-            <span className="sidebar-vault-name">{vaultPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()}</span>
+            <span
+              className="sidebar-vault-name"
+              role="button"
+              tabIndex={0}
+              title={t('sync.openHint')}
+              onClick={() => setSyncOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSyncOpen(true)
+                }
+              }}
+            >
+              {vaultPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()}
+            </span>
             <button
               type="button"
               className={`sidebar-new-btn${newMenuOpen ? ' active' : ''}`}
@@ -261,6 +285,7 @@ export default function LeftSidebar({
           </div>
       )}
       {switchOpen && <VaultSwitchDialog onClose={() => setSwitchOpen(false)} />}
+      {syncOpen && <SyncDialog onClose={() => setSyncOpen(false)} />}
     </div>
   )
 }

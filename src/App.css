@@ -549,6 +549,275 @@ body {
   opacity: 1;
 }
 
+/* ===== Git sync state colors (sidebar vault footer) =====
+   The data-sync-state attribute on .sidebar-vault-path drives both the vault
+   icon and the vault name color, so sync state is visible at a glance. */
+.sidebar-vault-path[data-sync-state='no-repo'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='no-repo'] .sidebar-vault-name { color: #9ca3af; }
+.sidebar-vault-path[data-sync-state='clean'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='clean'] .sidebar-vault-name { color: #22c55e; }
+.sidebar-vault-path[data-sync-state='dirty'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='dirty'] .sidebar-vault-name { color: #f59e0b; }
+.sidebar-vault-path[data-sync-state='ahead'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='ahead'] .sidebar-vault-name { color: #3b82f6; }
+.sidebar-vault-path[data-sync-state='behind'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='behind'] .sidebar-vault-name { color: #6366f1; }
+.sidebar-vault-path[data-sync-state='diverged'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='diverged'] .sidebar-vault-name,
+.sidebar-vault-path[data-sync-state='error'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='error'] .sidebar-vault-name { color: #ef4444; }
+.sidebar-vault-path[data-sync-state='syncing'] .sidebar-vault-icon,
+.sidebar-vault-path[data-sync-state='syncing'] .sidebar-vault-name {
+  color: #06b6d4;
+  animation: sync-pulse 1.2s ease-in-out infinite;
+}
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ===== Sync dialog ===== */
+.sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay);
+}
+.sync-card {
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--bg-elevated, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+}
+.sync-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.sync-title {
+  margin: 0;
+  font-size: 18px;
+}
+.sync-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.sync-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: #9ca3af;
+}
+.sync-badge-no-repo { background: #9ca3af; }
+.sync-badge-clean { background: #22c55e; }
+.sync-badge-dirty { background: #f59e0b; }
+.sync-badge-ahead { background: #3b82f6; }
+.sync-badge-behind { background: #6366f1; }
+.sync-badge-diverged,
+.sync-badge-error { background: #ef4444; }
+.sync-badge-syncing { background: #06b6d4; }
+.sync-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sync-commit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.sync-commit code {
+  background: var(--bg-secondary, #f1f5f9);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.sync-commit-date {
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+}
+.sync-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.sync-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  /* Use theme-aware surfaces so the label stays readable in dark & warm/light. */
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sync-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sync-btn-primary {
+  background: var(--accent);
+  /* --text-on-accent is dark in the dark theme and white otherwise, so the
+     label keeps contrast against the accent background in every theme. */
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+.sync-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
+}
+.sync-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.sync-section-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.sync-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+/* Left column: label + description stacked, matching settings-row-label. */
+.sync-field-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sync-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+/* Mirrors .settings-row-desc: small muted helper text under the label. */
+.sync-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+/* Text/number/password input used in the manual-sync dialog. Mirrors
+   .setting-control so it shares the same border, focus ring and hover. */
+.sync-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-content);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  outline: none;
+}
+.sync-input:focus,
+.sync-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.sync-input:hover {
+  border-color: var(--accent);
+}
+/* Canonical settings controls reused inside sync fields stay right-aligned at
+   the standard settings width, matching the rest of the settings UI. */
+.sync-field .setting-input,
+.sync-field .setting-select {
+  flex: 0 1 auto;
+  width: 260px;
+  max-width: 100%;
+}
+.sync-field .setting-number {
+  flex: 0 1 auto;
+  /* Same width as .sync-field .setting-input / .setting-select so all sync
+     controls in the settings view are equal length. */
+  width: 260px;
+}
+/* Toggle rows: label on the left, themed switch on the right — the same
+   layout as a settings-row boolean control. */
+.sync-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  /* Only the toggle button itself is clickable (see SyncSettings). */
+  cursor: default;
+}
+.sync-toggle-sub {
+  margin-left: 18px;
+}
+.sync-toggle-label {
+  color: var(--text-primary);
+}
+.sync-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* Settings-page sync config block (rendered inside the settings view) */
+.sync-settings {
+  display: flex;
+  flex-direction: column;
+  /* No extra gap: sections already carry their own margin-top + border-top. */
+  gap: 0;
+  /* Rendered inside .settings-row-control (a row flex container); stretch to
+     fill the full control width instead of shrinking to content size. */
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The "Git Sync" header line already separates the first section, so don't
+   double up the margin/border on the very first group. */
+.sync-settings > .sync-section:first-child {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+}
+
 .collapse-btn {
   width: 28px;
   height: 28px;

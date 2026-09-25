@@ -39,6 +39,17 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   // list of "note path regex -> folder" rules. Resolved by image-rules.mjs.
   imageDefaultDir: 'images',
   imageRules: [],
+  // Sync configuration. Provider-agnostic top-level flags, with each backend's
+  // private config nested under its provider id (e.g. `git`). The sync layer
+  // (server/sync/*) reads this; credentials never leave the server.
+  sync: {
+    provider: 'git',
+    autoSync: false,
+    autoSyncMode: 'interval',
+    autoSyncInterval: 15,
+    autoSyncDelay: 30,
+    git: { remoteUrl: '', branch: 'main', token: '', username: '' },
+  },
 })
 
 /**
@@ -121,5 +132,12 @@ export function publicSettings(settings) {
   out.aiProviders = (Array.isArray(settings.aiProviders) ? settings.aiProviders : []).map(
     ({ apiKey, ...rest }) => rest,
   )
+  // Sync credentials (git token/username) must never reach the unauthenticated
+  // first-paint script, exactly like AI API keys.
+  if (out.sync && out.sync.git) {
+    out.sync = { ...out.sync, git: { ...out.sync.git } }
+    delete out.sync.git.token
+    delete out.sync.git.username
+  }
   return out
 }

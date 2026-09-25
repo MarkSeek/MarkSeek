@@ -17,8 +17,10 @@ import { handleConfig } from './routes/config.mjs'
 import { handleAiChat } from './routes/ai.mjs'
 import { handlePlugins } from './routes/plugins.mjs'
 import { handleStatic } from './routes/static.mjs'
+import { handleSync } from './routes/sync.mjs'
 
 import { runtime } from './runtime.mjs'
+import { sendJson } from './http/respond.mjs'
 
 /**
  * Core handler: returns true if already handled (response sent); false if not matched (pass to the next middleware).
@@ -39,6 +41,15 @@ export async function handleApi(req, res, url) {
   if (await handleAiChat(req, res, url)) return true
   if (handlePlugins(req, res, url)) return true
   if (handleStatic(req, res, url)) return true
+  if (await handleSync(req, res, url)) return true
+
+  // Unmatched /api/* requests are client↔route mismatches (e.g. a stale build
+  // calling a removed endpoint). Answer with JSON so the frontend never receives
+  // the SPA's index.html (HTTP 200, HTML) — which would surface as a cryptic
+  // "Unexpected token '<' … is not valid JSON" parse error.
+  if (url.pathname.startsWith('/api/')) {
+    return sendJson(res, { error: 'not found', path: url.pathname }, 404)
+  }
 
   return false // not matched, pass to subsequent middleware
 }

@@ -16,6 +16,7 @@ import { Icon } from './icons/Icon'
 import { SettingsRawModal } from './SettingsRawModal'
 import { SHORTCUTS } from '../hooks/useGlobalShortcuts'
 import { isMac } from '../utils/platform'
+import SyncSettings from './SyncSettings'
 
 const MOD_LABEL = isMac ? '⌘' : 'Ctrl'
 
@@ -263,6 +264,16 @@ function FieldControl({ field }: { field: SettingField }) {
 
     case 'imageRuleList':
       return <ImageRuleList />
+
+    case 'syncConfig': {
+      const syncValue = (value as unknown as import('../config/syncConfig').SyncConfig)
+      return (
+        <SyncSettings
+          value={syncValue}
+          onChange={(v) => set(field.key as keyof typeof values, v as never)}
+        />
+      )
+    }
 
     default:
       return null
@@ -981,7 +992,9 @@ export default function SettingsView() {
                         key={field.key}
                         id={anchorId(fieldId)}
                         className={`settings-row ${
-                          field.type === 'providerList' || field.type === 'imageRuleList'
+                          field.type === 'providerList' ||
+                          field.type === 'imageRuleList' ||
+                          field.type === 'syncConfig'
                             ? 'settings-row--full'
                             : ''
                         }${flashId === fieldId ? ' is-flash' : ''}`}

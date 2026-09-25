@@ -51,6 +51,10 @@ export function useDraftAutosave({ getTabs, markSaved }: DraftAutosaveOptions): 
         await writeFile(tab.filePath ?? tab.path, contentToSave)
         delete draftsRef.current[id]
         markSaved(id)
+        // Let the sync layer (onSave auto mode) know a file was persisted.
+        if (typeof document !== 'undefined' && document.dispatchEvent) {
+          document.dispatchEvent(new CustomEvent('markseek:note-saved'))
+        }
       } catch (e) {
         console.error('Failed to save file:', e)
       }

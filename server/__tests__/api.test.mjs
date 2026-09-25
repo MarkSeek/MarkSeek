@@ -56,9 +56,12 @@ describe('routing', () => {
     expect(handled).toBe(false)
   })
 
-  it('returns false for a known path with the wrong method', async () => {
-    const { handled } = await call('/api/files/write', { method: 'GET' })
-    expect(handled).toBe(false)
+  it('answers an unmatched /api path with JSON 404 (never the SPA HTML)', async () => {
+    const { handled, res } = await call('/api/files/write', { method: 'GET' })
+    expect(handled).toBe(true)
+    expect(res.statusCode).toBe(404)
+    expect(res.getHeader('content-type')).toContain('application/json')
+    expect(JSON.parse(res.text()).error).toBe('not found')
   })
 })
 

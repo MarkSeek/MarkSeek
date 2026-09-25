@@ -4,6 +4,7 @@
 
 import { THEME_IDS } from './themeIds'
 import type { ThemeId } from './themeIds'
+import { DEFAULT_SYNC_CONFIG } from './syncConfig'
 
 export type SettingType =
   | 'select'
@@ -12,6 +13,7 @@ export type SettingType =
   | 'boolean'
   | 'providerList'
   | 'imageRuleList'
+  | 'syncConfig'
   | 'zoom'
 
 // Single model config (VS Code chat.ml style)
@@ -59,6 +61,7 @@ export type SettingValue =
   | string[]
   | ProviderConfig[]
   | ImageRule[]
+  | import('./syncConfig').SyncConfig
 
 export interface SettingOption {
   label: string
@@ -258,6 +261,25 @@ const LAYOUT: SettingGroup = {
   ],
 }
 
+// ===== Sync =====
+// A single custom field carries the whole nested sync config (provider-agnostic
+// flags + each backend's private config under its id). All sync *configuration*
+// lives here in Settings; the vault-side dialog only shows status + actions.
+const SYNC: SettingGroup = {
+  id: 'sync',
+  title: 'settings.group.sync',
+  description: 'settings.group.sync.desc',
+  fields: [
+    {
+      key: 'sync',
+      type: 'syncConfig',
+      label: 'settings.field.sync',
+      description: 'settings.field.sync.desc',
+      default: DEFAULT_SYNC_CONFIG,
+    },
+  ],
+}
+
 export const SETTINGS_GROUPS: SettingGroup[] = [
   APPEARANCE,
   EDITOR,
@@ -265,6 +287,7 @@ export const SETTINGS_GROUPS: SettingGroup[] = [
   AI,
   NETWORK,
   LAYOUT,
+  SYNC,
 ]
 
 // Default config object derived from the schema

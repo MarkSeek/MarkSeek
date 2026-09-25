@@ -9,6 +9,7 @@ import SearchDialog from './components/SearchDialog'
 import { SHORTCUT_EVENTS } from './hooks/shortcutEvents'
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext'
 import { SettingsProvider, useSettings } from './context/SettingsContext'
+import { SyncProvider } from './hooks/useSync'
 import { getVaultKey, readSession, patchSession } from './utils/sessionStorage'
 import { setLang } from './i18n'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
@@ -237,9 +238,11 @@ function AppGate() {
   // lazy useState initialisers read the authoritative snapshot from frame one.
   if (!vaultReady) return null
   return (
-    <WorkspaceProvider>
-      {vaultPath ? <AppLayout /> : <VaultSetupWizard />}
-    </WorkspaceProvider>
+    <SyncProvider>
+      <WorkspaceProvider>
+        {vaultPath ? <AppLayout /> : <VaultSetupWizard />}
+      </WorkspaceProvider>
+    </SyncProvider>
   )
 }
 
