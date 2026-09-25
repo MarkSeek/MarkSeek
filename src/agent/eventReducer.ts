@@ -129,6 +129,21 @@ export function handleAgentEvent(
     case 'error':
       return [{ type: 'setError', message: ev.message }]
 
+    case 'log':
+      // Informational line (e.g. the search-term expansion) shown in the activity
+      // log. Rendered distinctly by ActivityLog via the 'log' status.
+      return [
+        {
+          type: 'pushActivity',
+          activity: {
+            id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name: '',
+            status: 'log',
+            result: ev.line,
+          },
+        },
+      ]
+
     case 'done':
       // A done that still carries tool_calls means the run PAUSED for a write
       // confirmation: the answer is not final, so freeze the elapsed time and

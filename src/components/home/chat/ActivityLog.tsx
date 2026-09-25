@@ -7,6 +7,7 @@ import type { ToolActivity } from '../../../agent/types'
 function activityIcon(status: ToolActivity['status']): IconName {
   if (status === 'confirm' || status === 'error') return 'alert'
   if (status === 'done') return 'file-result'
+  if (status === 'log') return 'search'
   return 'robot'
 }
 
@@ -36,8 +37,14 @@ export function ActivityLog({ activities }: { activities: ToolActivity[] }) {
         activities.map((a) => (
           <div key={a.id} className={`agent-activity agent-activity-${a.status}`}>
             <Icon name={activityIcon(a.status)} size={14} />
-            <span className="agent-activity-name">{a.name}</span>
-            <span className="agent-activity-summary">{activitySummary(a)}</span>
+            {a.status === 'log' ? (
+              <span className="agent-activity-summary agent-activity-log-line">{a.result}</span>
+            ) : (
+              <>
+                <span className="agent-activity-name">{a.name}</span>
+                <span className="agent-activity-summary">{activitySummary(a)}</span>
+              </>
+            )}
           </div>
         ))}
     </div>

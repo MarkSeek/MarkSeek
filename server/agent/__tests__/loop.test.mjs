@@ -620,7 +620,7 @@ describe('runAgent', () => {
     expect(frames.find((f) => f.event === 'error').data.message).toBe(
       'Reached maximum agent steps.',
     )
-    expect(fetchSpy).toHaveBeenCalledTimes(8)
+    expect(fetchSpy).toHaveBeenCalledTimes(32)
   })
 
   it('streams the assistant message including its tool calls', async () => {

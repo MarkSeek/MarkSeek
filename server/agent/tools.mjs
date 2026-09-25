@@ -16,9 +16,10 @@ import {
   journalPathForDate,
   todayString,
 } from '../notes-fs.mjs'
+import { expandQuery } from './queryExpand.mjs'
 
 const MAX_READ_CHARS = 8000
-const MAX_SEARCH_RESULTS = 10
+const MAX_SEARCH_RESULTS = 15
 
 /**
  * Tool call arguments are validated defensively. Each tool returns a plain
@@ -50,16 +51,42 @@ function listNotes({ dir = '' } = {}, root = getVaultDir()) {
  * The vault-wide scan is async, so this tool is too — see `runTool`.
  * @returns {Promise<string>} one line per hit, or a "no matches" notice.
  */
-async function searchNotesTool({ query } = {}, root = getVaultDir()) {
-  if (!query || typeof query !== 'string') return 'Error: missing query.'
-  const results = (await searchNotesInVault(root, query.toLowerCase())).slice(0, MAX_SEARCH_RESULTS)
-  if (!results.length) return `No notes matched "${query}".`
-  return results
+/**
+ * Expand the user's query into several search terms (via the LLM) and run the
+ * existing vault search for each, then merge hits by path and rank by how many
+ * terms matched. When no provider is supplied (e.g. unit tests) the query is
+ * searched verbatim. Always returns { value, expandedTerms } so the caller can
+ * show the expansion in the UI.
+ */
+async function searchNotesTool({ query } = {}, root = getVaultDir(), provider) {
+  if (!query || typeof query !== 'string') {
+    return { value: 'Error: missing query.', expandedTerms: [] }
+  }
+  const expanded = provider ? await expandQuery(query, provider) : [query]
+  const byPath = new Map()
+  for (const term of expanded) {
+    const results = await searchNotesInVault(root, term.toLowerCase())
+    for (const r of results) {
+      const cur = byPath.get(r.path) || { path: r.path, matches: [] }
+      for (const m of r.matches) {
+        if (!cur.matches.includes(m)) cur.matches.push(m)
+      }
+      byPath.set(r.path, cur)
+    }
+  }
+  if (byPath.size === 0) {
+    return { value: `No notes matched "${query}".`, expandedTerms: expanded }
+  }
+  const merged = [...byPath.values()]
+    .sort((a, b) => b.matches.length - a.matches.length)
+    .slice(0, MAX_SEARCH_RESULTS)
+  const value = merged
     .map((r) => {
       const matchLines = r.matches.length ? `\n    matches: ${r.matches.join(' | ')}` : ''
       return `- ${r.path}${matchLines}`
     })
     .join('\n')
+  return { value, expandedTerms: expanded }
 }
 
 function readNote({ path: p } = {}, root = getVaultDir()) {
@@ -179,13 +206,17 @@ export function applyWrite({ op, path: p, content }, { vaultDir } = {}) {
  * Async because `search_notes` reads the whole vault; callers must await it.
  * @returns {Promise<{ kind: string, value: any }>}
  */
-export async function runTool(name, args, { vaultDir } = {}) {
+export async function runTool(name, args, { vaultDir, provider } = {}) {
   const root = vaultDir || getVaultDir()
   switch (name) {
     case 'list_notes':
       return { kind: 'result', value: listNotes(args, root) }
-    case 'search_notes':
-      return { kind: 'result', value: await searchNotesTool(args, root) }
+    case 'search_notes': {
+      const r = provider
+        ? await searchNotesTool(args, root, provider)
+        : await searchNotesTool(args, root)
+      return { kind: 'result', value: r.value, expandedTerms: r.expandedTerms }
+    }
     case 'read_note':
       return { kind: 'result', value: readNote(args, root) }
     case 'today_journal':

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { runTool, applyWrite, TOOL_DEFINITIONS, todayString } from '../tools.mjs'
@@ -10,6 +10,7 @@ import {
 } from '../../__tests__/helpers/tmp-vault.mjs'
 
 afterAll(cleanupTmpVaults)
+afterEach(() => vi.unstubAllGlobals())
 
 const SEED = {
   'Projects/ideas.md': '# Ideas\nbuild a search box\n',
@@ -95,6 +96,43 @@ describe('search_notes', () => {
   it('requires a query', async () => {
     const root = vault()
     expect((await runTool('search_notes', {}, { vaultDir: root })).value).toBe('Error: missing query.')
+  })
+})
+
+describe('search_notes expansion', () => {
+  it('expands the query via the provider and merges results across terms', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '["search","box","interface"]' } }] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const root = vault()
+    const { value, expandedTerms } = await runTool(
+      'search_notes',
+      { query: 'search box' },
+      { vaultDir: root, provider: { apiKey: 'k', baseURL: 'https://api.example.com/v1', model: 'm' } },
+    )
+    expect(expandedTerms).toEqual(['search', 'box', 'interface'])
+    expect(value).toContain('Projects/ideas.md')
+    expect(value).toContain('build a search box')
+  })
+
+  it('searches the query verbatim when no provider is given', async () => {
+    const root = vault()
+    const { expandedTerms } = await runTool('search_notes', { query: 'search box' }, { vaultDir: root })
+    expect(expandedTerms).toEqual(['search box'])
+  })
+
+  it('falls back to the original query when the provider fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network') }))
+    const root = vault()
+    const { expandedTerms, value } = await runTool(
+      'search_notes',
+      { query: 'a reasonably long query' },
+      { vaultDir: root, provider: { apiKey: 'k', baseURL: 'https://api.example.com/v1', model: 'm' } },
+    )
+    expect(expandedTerms).toEqual(['a reasonably long query'])
+    expect(value).toContain('No notes matched')
   })
 })
 

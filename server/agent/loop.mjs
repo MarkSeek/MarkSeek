@@ -10,7 +10,7 @@ import { readSettings } from '../settings.mjs'
 import { resolveProxyUrl, maskProxyUrl } from '../proxy.mjs'
 import { logError } from '../log.mjs'
 
-const MAX_STEPS = 8
+const MAX_STEPS = 32
 
 // Read-only subset: only list/search/read. Used by the "ask" mode so the model
 // can reason over note content without any ability to create or modify files.
@@ -52,6 +52,10 @@ function sendConfirm(res, req) {
 
 function sendError(res, message) {
   sse(res, 'error', { message })
+}
+
+function sendLog(res, line) {
+  sse(res, 'log', { line })
 }
 
 function sendDone(res, assistantMsg, usage) {
@@ -504,7 +508,18 @@ export async function runAgent({ res, messages, context, confirmations, mode, pr
         continue
       }
       sendToolCall(res, tc.id, tc.name, tc.args)
-      const outcome = await runTool(tc.name, tc.args)
+      const outcome = await runTool(tc.name, tc.args, { provider: cfg })
+      // Surface the search-term expansion so the user can see what was searched.
+      if (
+        tc.name === 'search_notes' &&
+        Array.isArray(outcome.expandedTerms) &&
+        outcome.expandedTerms.length > 1
+      ) {
+        sendLog(
+          res,
+          `🔍 search extend: ${outcome.expandedTerms.map((t) => `"${t}"`).join('、')}`,
+        )
+      }
 
       if (outcome.kind === 'confirm_required') {
         // Check if the user already responded to this exact request.

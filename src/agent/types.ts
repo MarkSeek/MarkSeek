@@ -23,7 +23,7 @@ export interface ToolActivity {
   name: string
   args: Record<string, unknown>
   result?: string
-  status: 'running' | 'done' | 'confirm' | 'error'
+  status: 'running' | 'done' | 'confirm' | 'error' | 'log'
 }
 
 // A pending write that needs user confirmation.

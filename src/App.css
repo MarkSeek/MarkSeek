@@ -4319,6 +4319,13 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
   max-width: 200px;
 }
 
+/* Informational lines such as the search-term expansion note. */
+.agent-activity-log-line {
+  color: var(--text-tertiary, #9ca3af);
+  font-style: italic;
+  white-space: normal;
+}
+
 .agent-activity-running svg {
   color: var(--accent, #06b6d4);
 }
