@@ -8,6 +8,7 @@
 //
 // Note agent module (independent folder): SSE tool-calling for note Q&A.
 import { agentHandler } from './agent/index.mjs'
+import { handleFileHistory } from './routes/fileHistory.mjs'
 
 // Route groups, in the order they are consulted.
 import { handleFiles } from './routes/files.mjs'
@@ -41,6 +42,7 @@ export async function handleApi(req, res, url) {
   if (await handleAiChat(req, res, url)) return true
   if (handlePlugins(req, res, url)) return true
   if (handleStatic(req, res, url)) return true
+  if (await handleFileHistory(req, res, url)) return true
   if (await handleSync(req, res, url)) return true
 
   // Unmatched /api/* requests are client↔route mismatches (e.g. a stale build

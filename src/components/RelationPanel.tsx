@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { fetchRelations } from '../api/relations'
 import type { NoteRef, RelationResult } from '../utils/relations'
 import { useWikiLinkOpen } from '../hooks/useWikiLinkOpen'
 import { t } from '../i18n'
+import { formatFullTime, formatRelativeTime } from '../utils/timeFormat'
+import HistoryView from './HistoryView'
 import { readJsonMigrated, writeJson } from '../utils/storage'
 import { KEYS } from '../utils/storageKeys'
 import { RelationIcon } from './icons/RelationIcon'
@@ -12,6 +14,7 @@ import {
   PanelBody,
   PanelChip,
   PanelEmpty,
+  PanelNone,
   PanelRow,
   PanelSection,
   PanelSkeleton,
@@ -22,15 +25,37 @@ interface RelationPanelProps {
   currentNote?: { path: string; content: string }
 }
 
-type SectionId = 'backLinks' | 'outLinks' | 'tags' | 'tasks'
+/** One commit touching the current note, as returned by /api/sync/file-history. */
+interface CommitInfo {
+  hash: string
+  shortHash: string
+  message: string
+  author: string
+  email: string
+  date: string
+}
 
-const SECTION_IDS: SectionId[] = ['backLinks', 'outLinks', 'tags', 'tasks']
+/** Commit history of a single note (git log filtered by filepath). */
+async function fetchFileHistory(path: string): Promise<{ initialized: boolean; history: CommitInfo[] }> {
+  const res = await fetch(`/api/sync/file-history?path=${encodeURIComponent(path)}`)
+  if (!res.ok) throw new Error('Failed to load file history')
+  return res.json()
+}
+
+type SectionId = 'backLinks' | 'outLinks' | 'tags' | 'tasks' | 'history'
+
+const SECTION_IDS: SectionId[] = ['backLinks', 'outLinks', 'tags', 'tasks', 'history']
+
+// History rows shown before the "show all" expander; keeps the panel compact
+// when a note has a long commit log (the backend caps at 50 commits).
+const HISTORY_PREVIEW_COUNT = 10
 
 const SECTION_LABEL: Record<SectionId, string> = {
   backLinks: 'relations.backLinks',
   outLinks: 'relations.outLinks',
   tags: 'relations.tags',
   tasks: 'relations.tasks',
+  history: 'relations.history',
 }
 
 const HIDDEN_KEY = KEYS.relationSections
@@ -102,8 +127,40 @@ function loadIds(key: string, legacyKeys: readonly string[] = []): SectionId[] {
   )
 }
 
+/**
+ * One git commit in the history list. Compact two-line layout: the commit
+ * message is the primary line, the short hash and a relative timestamp sit
+ * underneath in muted text. The full timestamp is kept on the hover title.
+ */
+function HistoryCommitRow({
+  commit,
+  onSelect,
+}: {
+  commit: CommitInfo
+  onSelect: () => void
+}) {
+  const ts = new Date(commit.date).getTime()
+  return (
+    <button
+      type="button"
+      className="rpp-hrow"
+      onClick={onSelect}
+      title={`${commit.message}\n${formatFullTime(ts)}`}
+    >
+      <span className="rpp-hrow-dot" aria-hidden="true" />
+      <span className="rpp-hrow-body">
+        <span className="rpp-hrow-msg">{commit.message}</span>
+        <span className="rpp-hrow-meta">
+          <span className="rpp-hrow-hash">{commit.shortHash}</span>
+          <span className="rpp-hrow-time">{formatRelativeTime(ts)}</span>
+        </span>
+      </span>
+    </button>
+  )
+}
+
 export default function RelationPanel({ currentNote }: RelationPanelProps) {
-  const { openFile } = useWorkspace()
+  const { openFile, activeTab, updateContent, refreshOpenFile } = useWorkspace()
   const [loading, setLoading] = useState(false)
   // The backend owns the scan now: one request per note, result kept as-is.
   const [result, setResult] = useState<RelationResult | null>(null)
@@ -113,8 +170,23 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
   )
   // Sections folded to their header only; the explicit choice is persisted.
   const [openMap, setOpenMap] = useState<OpenMap>(loadOpen)
+  // History uses its own, non-persisted collapsed state so a stale persisted
+  // "open" value can never force it expanded again. It defaults to collapsed
+  // and only an in-session manual toggle opens it.
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  // Git commit history of the current note; independent from the relations scan.
+  const [history, setHistory] = useState<CommitInfo[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyInitialized, setHistoryInitialized] = useState(true)
+  // The commit whose preview modal is open (null = closed).
+  const [selectedCommit, setSelectedCommit] = useState<CommitInfo | null>(null)
+  // Long logs start truncated to HISTORY_PREVIEW_COUNT rows; the "show all"
+  // expander reveals the rest inside a height-capped, scrollable list.
+  const [showAllHistory, setShowAllHistory] = useState(false)
+  // Transient confirmation shown after a restore.
+  const [toast, setToast] = useState<string | null>(null)
 
   // Close the display menu when clicking outside.
   useEffect(() => {
@@ -159,12 +231,99 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
     }
   }, [notePath, noteContent])
 
+  // File history reflects the committed (on-disk) state, so it depends only on
+  // the note path, not its live draft. `silent` skips the loading skeleton so a
+  // background re-fetch (expand / commit) doesn't flicker the existing rows.
+  const loadHistory = useCallback((path: string, opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false
+    let cancelled = false
+    if (!silent) setHistoryLoading(true)
+    const timer = setTimeout(() => {
+      fetchFileHistory(path)
+        .then((res) => {
+          if (cancelled) return
+          setHistoryInitialized(res.initialized)
+          setHistory(res.history)
+          if (!silent) setHistoryLoading(false)
+        })
+        .catch(() => {
+          if (!cancelled && !silent) setHistoryLoading(false)
+        })
+    }, REQUEST_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [])
+
+  // Initial fetch when the note opens. The preview truncation resets too, so
+  // switching notes never inherits the previous note's "show all" state.
+  useEffect(() => {
+    setShowAllHistory(false)
+    if (!notePath) {
+      setHistory([])
+      setHistoryInitialized(true)
+      setHistoryLoading(false)
+      return
+    }
+    return loadHistory(notePath)
+  }, [notePath, loadHistory])
+
+  // The history section is collapsed by default; re-fetch the moment the user
+  // expands it so the rows are never stale on first view.
+  useEffect(() => {
+    if (historyOpen && notePath) return loadHistory(notePath, { silent: true })
+  }, [historyOpen, notePath, loadHistory])
+
+  // A git commit/sync can land well after the note opened, so the list would
+  // otherwise stay frozen on the version fetched at open time. The api layer
+  // broadcasts 'markseek:committed' after any operation that changes the git
+  // log (commit / sync / pull) — see src/api/sync.ts.
+  useEffect(() => {
+    if (!notePath) return
+    let cancel: (() => void) | null = null
+    const onCommitted = () => {
+      if (cancel) cancel()
+      cancel = loadHistory(notePath, { silent: true })
+    }
+    document.addEventListener('markseek:committed', onCommitted)
+    return () => {
+      document.removeEventListener('markseek:committed', onCommitted)
+      if (cancel) cancel()
+    }
+  }, [notePath, loadHistory])
+
+  // Auto-dismiss the restore confirmation.
+  useEffect(() => {
+    if (!toast) return
+    const id = setTimeout(() => setToast(null), 2500)
+    return () => clearTimeout(id)
+  }, [toast])
+
   // Wikilinks share the editor's behaviour: one match opens, several ask.
   const { openWikiLink, pickerNode } = useWikiLinkOpen()
 
   const open = (path: string) => {
     void openFile(path)
   }
+
+  // Replace the current note's editor buffer with a historical version.
+  // `refreshOpenFile` drives `replaceContent`, which bumps the tab `rev` so the
+  // Crepe editor swaps the document in place (the on-screen view updates);
+  // `updateContent` then re-buffers the restored text so the debounced autosave
+  // still persists it to disk and fires the sync-on-save hook.
+  const restoreVersion = useCallback(
+    async (content: string) => {
+      const id = activeTab?.id
+      const path = currentNote?.path
+      if (!id || !path) return
+      await refreshOpenFile(path, content)
+      updateContent(id, content)
+      setSelectedCommit(null)
+      setToast(t('relations.restored'))
+    },
+    [currentNote, activeTab, refreshOpenFile, updateContent],
+  )
 
   /**
    * Open one outgoing link: external ones go to the browser, wikilinks are
@@ -231,6 +390,7 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
     outLinks: outLinks.length,
     tags: tags.length,
     tasks: tasks.length,
+    history: history.length,
   }
 
   const blocks: { id: SectionId; body: ReactNode }[] = [
@@ -308,6 +468,35 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
         </>
       ),
     },
+    {
+      id: 'history',
+      body: historyLoading ? (
+        <PanelSkeleton rows={3} />
+      ) : !historyInitialized ? (
+        <PanelNone text={t('relations.historyNoRepo')} />
+      ) : history.length === 0 ? (
+        <PanelNone text={t('relations.historyEmpty')} />
+      ) : (
+        <div className={showAllHistory ? 'rpp-hlist rpp-hlist-open' : 'rpp-hlist'}>
+          {(showAllHistory ? history : history.slice(0, HISTORY_PREVIEW_COUNT)).map((c) => (
+            <HistoryCommitRow
+              key={c.hash}
+              commit={c}
+              onSelect={() => setSelectedCommit(c)}
+            />
+          ))}
+          {history.length > HISTORY_PREVIEW_COUNT && !showAllHistory && (
+            <button
+              type="button"
+              className="rpp-hmore"
+              onClick={() => setShowAllHistory(true)}
+            >
+              {t('relations.historyShowAll', { n: history.length })}
+            </button>
+          )}
+        </div>
+      ),
+    },
   ]
 
   // Section headers always render (with their live count); only the rows are
@@ -369,8 +558,16 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
         <PanelBody>
           {visibleBlocks.length > 0 ? (
             visibleBlocks.map((b) => {
-              // No explicit choice yet: empty sections start folded.
-              const isOpen = openMap[b.id] ?? counts[b.id] > 0
+              // No explicit choice yet: empty sections start folded. History
+              // has its own non-persisted state that always defaults to folded.
+              const isOpen =
+                b.id === 'history'
+                  ? historyOpen
+                  : openMap[b.id] ?? counts[b.id] > 0
+              const onToggle =
+                b.id === 'history'
+                  ? () => setHistoryOpen((v) => !v)
+                  : () => toggleCollapsed(b.id, isOpen)
               return (
                 <PanelSection
                   key={b.id}
@@ -378,7 +575,7 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
                   count={counts[b.id]}
                   collapsible
                   open={isOpen}
-                  onToggle={() => toggleCollapsed(b.id, isOpen)}
+                  onToggle={onToggle}
                 >
                   {b.body}
                 </PanelSection>
@@ -396,6 +593,15 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
         </PanelBody>
       )}
       {pickerNode}
+      {selectedCommit && notePath && (
+        <HistoryView
+          notePath={notePath}
+          commit={selectedCommit}
+          onClose={() => setSelectedCommit(null)}
+          onRestore={restoreVersion}
+        />
+      )}
+      {toast && <div className="rpp-toast">{toast}</div>}
     </PanelView>
   )
 }

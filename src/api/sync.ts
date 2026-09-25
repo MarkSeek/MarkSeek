@@ -48,15 +48,32 @@ function post(path: string, body?: unknown): Promise<void> {
   ).then(() => undefined)
 }
 
+// Fire-and-forget broadcast after any operation that can change the git log
+// (commit, full sync, pull). Views showing a note's history listen for it and
+// re-fetch so their list never stays frozen on what was loaded at open time.
+function broadcastLogChanged(): void {
+  if (typeof document === 'undefined') return
+  document.dispatchEvent(new CustomEvent('markseek:committed'))
+}
+
 export const fetchSyncStatus = () => asJson<SyncStatus>(fetch('/api/sync/status'))
 export const fetchProviders = () => asJson<{ providers: ProviderInfo[] }>(fetch('/api/sync/providers'))
 export const syncInit = () => post('/api/sync/init')
-export const syncCommit = (message: string) => post('/api/sync/commit', { message })
+export const syncCommit = async (message: string) => {
+  await post('/api/sync/commit', { message })
+  broadcastLogChanged()
+}
 export const syncPush = () => post('/api/sync/push')
-export const syncPull = () => post('/api/sync/pull')
+export const syncPull = async () => {
+  await post('/api/sync/pull')
+  broadcastLogChanged()
+}
 // Manual "Sync Now" omits opts → backend defaults to a full commit+pull+push.
 // The auto flow passes only the enabled steps (e.g. { commit, push }).
-export const syncNow = (
+export const syncNow = async (
   message?: string,
   opts?: { commit?: boolean; push?: boolean },
-) => post('/api/sync/sync', { message, commit: opts?.commit, push: opts?.push })
+) => {
+  await post('/api/sync/sync', { message, commit: opts?.commit, push: opts?.push })
+  broadcastLogChanged()
+}

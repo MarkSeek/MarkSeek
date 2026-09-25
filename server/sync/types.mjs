@@ -73,6 +73,35 @@ export class SyncProvider {
   }
 
   /**
+   * Commit history of a single file (filtered by filepath).
+   * @param {string} dir
+   * @param {object} config
+   * @param {string} filepath  path relative to the vault root
+   * @param {{ depth?: number }} [opts]
+   * @returns {Promise<{ initialized: boolean, history: Array<{
+   *   hash: string, shortHash: string, message: string,
+   *   author: string, email: string, date: string
+   * }> }>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async getFileHistory(dir, config, filepath, opts) {
+    throw new Error('not implemented')
+  }
+
+  /**
+   * Read a single file's content at a given commit.
+   * @param {string} dir
+   * @param {object} config
+   * @param {string} filepath  path relative to the vault root
+   * @param {string} oid       commit SHA to read from
+   * @returns {Promise<{ content: string }>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async getFileAtCommit(dir, config, filepath, oid) {
+    throw new Error('not implemented')
+  }
+
+  /**
    * Combined operation. Default strategy: commit local changes (if any),
    * then pull (fast-forward), then push — minimizing divergence.
    * @param {string} [message]

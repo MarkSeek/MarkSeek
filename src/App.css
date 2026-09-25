@@ -94,6 +94,8 @@
   /* ===== Theme-agnostic semantic variables (shared by all three themes, override here) ===== */
   --bg-elevated: #ffffff;   /* "raised" surfaces such as popovers / cards / menus */
   --bg-input: #ffffff;      /* input / search box background */
+  --bg-panel: #ffffff;      /* floating modal / dialog surface */
+  --bg-soft: rgba(0, 0, 0, 0.02);  /* subtle row/section tint */
 
   /* Calendar date cell background: derived relative to the card color, just for slight differentiation */
   --cell-bg: rgb(from var(--bg-content) calc(r + 6) calc(g + 6) calc(b + 6));
@@ -237,6 +239,8 @@
   --bg-selected: #3a3a42;
   --bg-elevated: #34343a;
   --bg-input: #1f1f23;
+  --bg-panel: #2f2f35;                       /* floating modal / dialog surface */
+  --bg-soft: rgba(255, 255, 255, 0.04);      /* subtle row/section tint */
   --crepe-surface-low: #2f2f35;
 
   --cell-bg: rgb(from var(--bg-content) calc(r + 6) calc(g + 6) calc(b + 10));
@@ -5156,6 +5160,119 @@ html[data-electron-platform="linux"] .rp-header {
   white-space: nowrap;
 }
 
+/* ---- History commit rows (compact, two-line) ---- */
+.rpp-hrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+
+.rpp-hrow:hover {
+  background: var(--bg-hover);
+}
+
+.rpp-hrow-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin: 5px 0 0 1px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.rpp-hrow-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rpp-hrow-msg {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rpp-hrow-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rpp-hrow-hash {
+  font-family: var(--font-mono, 'SFMono-Regular', Menlo, Consolas, monospace);
+  letter-spacing: 0.2px;
+}
+
+.rpp-hrow-time {
+  white-space: nowrap;
+}
+
+/* ---- History list container & "show all" expander ---- */
+.rpp-hlist {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Once fully expanded, cap the height and scroll internally so a long commit
+   log can't push the rest of the panel out of view. */
+.rpp-hlist-open {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Same thin, theme-aware scrollbar as .rpp-body so the two scroll areas read
+     as one consistent surface across both themes. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.rpp-hlist-open::-webkit-scrollbar { width: 3px; }
+.rpp-hlist-open::-webkit-scrollbar-button { display: none; }
+.rpp-hlist-open::-webkit-scrollbar-track { background: transparent; }
+.rpp-hlist-open::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+.rpp-hlist-open::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+
+.rpp-hmore {
+  margin: 2px 8px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.12s ease;
+}
+
+.rpp-hmore:hover {
+  background: var(--bg-hover);
+}
+
 .rpp-row-actions {
   flex: 0 0 auto;
   display: inline-flex;
@@ -5296,6 +5413,157 @@ html[data-electron-platform="linux"] .rp-header {
 .rpp-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.rpp-btn.is-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.rpp-btn.is-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+/* ---- History preview modal ---- */
+.hv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 15, 20, 0.4);
+  padding: 24px;
+}
+
+.hv-modal {
+  display: flex;
+  flex-direction: column;
+  width: 540px;
+  max-width: 92vw;
+  max-height: 82vh;
+  background: var(--bg-panel, #fff);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.hv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.hv-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hv-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
+}
+
+.hv-meta-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.hv-meta-key {
+  flex: 0 0 56px;
+  color: var(--text-secondary);
+}
+
+.hv-meta-val {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.hv-meta-row.hv-message .hv-meta-val {
+  font-style: italic;
+}
+
+.hv-content {
+  flex: 1;
+  min-height: 200px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.hv-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.hv-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  resize: none;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  padding: 10px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.6;
+  outline: none;
+  /* Match the panel's thin, theme-aware scrollbar instead of the native one. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.hv-textarea::-webkit-scrollbar { width: 3px; }
+.hv-textarea::-webkit-scrollbar-button { display: none; }
+.hv-textarea::-webkit-scrollbar-track { background: transparent; }
+.hv-textarea::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+.hv-textarea::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+
+.hv-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+/* ---- Transient restore confirmation ---- */
+.rpp-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
 }
 
 /* ---- Empty state ---- */
