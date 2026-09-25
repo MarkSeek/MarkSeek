@@ -5028,7 +5028,7 @@ html[data-electron-platform="linux"] .rp-header {
 
 /* Folded sections keep their header and lose only the list below. */
 .rpp-section.is-collapsed {
-  margin-bottom: 8px;
+  margin-bottom: 9px;
 }
 
 .rpp-section-bar {
@@ -5037,6 +5037,14 @@ html[data-electron-platform="linux"] .rp-header {
   height: 10px;
   border-radius: 2px;
   background: var(--accent);
+}
+
+/* Leading glyph of a section head (used instead of the bar). */
+.rpp-section-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
 }
 
 .rpp-section-title {
@@ -5634,6 +5642,164 @@ html[data-electron-platform="linux"] .rp-header {
 
 @media (prefers-reduced-motion: reduce) {
   .rpp-skeleton-row { animation: none; }
+}
+
+/* ===================== Relations view polish (.rpp-view-relations) ========
+   Relation-panel-only refinements layered on the shared shell: softer
+   sections, timeline-styled history, pill stats and a calmer empty state.
+   Scoped so the chat history view keeps the plain shell look. */
+
+/* Sections breathe a little more, and freshly revealed content slides in. */
+.rpp-view-relations .rpp-section {
+  margin-bottom: 9px;
+}
+
+.rpp-view-relations .rpp-section-head {
+  margin-bottom: 6px;
+}
+
+.rpp-view-relations .rpp-list {
+  gap: 2px;
+  animation: rpp-relations-reveal 0.16s ease;
+}
+
+@keyframes rpp-relations-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rpp-view-relations .rpp-list { animation: none; }
+}
+
+/* Rows: rounder hit area, accent-tinted icon on hover. */
+.rpp-view-relations .rpp-row-hit {
+  border-radius: 8px;
+}
+
+.rpp-view-relations .rpp-row-icon {
+  transition: color 0.14s ease;
+}
+
+.rpp-view-relations .rpp-row.is-clickable:hover .rpp-row-icon {
+  color: var(--accent);
+}
+
+/* Snippets and paths wrap to two lines instead of being cut mid-sentence. */
+.rpp-view-relations .rpp-row-sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+/* Tags read as soft accent pills. */
+.rpp-view-relations .rpp-chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+/* Task counters become self-contained stat pills. */
+.rpp-view-relations .rpp-summary {
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+
+.rpp-view-relations .rpp-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  background: var(--bg-hover);
+  border-radius: 999px;
+}
+
+.rpp-view-relations .rpp-summary-item b {
+  margin-left: 0;
+}
+
+/* Commit history reads as a vertical timeline: soft ring around each dot and
+   a hairline connecting one entry to the next. */
+.rpp-view-relations .rpp-hrow {
+  position: relative;
+}
+
+.rpp-view-relations .rpp-hrow-dot {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.rpp-view-relations .rpp-hrow::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 15px;
+  bottom: -7px;
+  width: 1px;
+  background: var(--border);
+}
+
+.rpp-view-relations .rpp-hrow:last-child::after {
+  display: none;
+}
+
+/* Short hashes sit in a quiet mono chip instead of raw muted text. */
+.rpp-view-relations .rpp-hrow-hash {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+/* "Show all" becomes a centered ghost pill. */
+.rpp-view-relations .rpp-hmore {
+  align-self: center;
+  margin: 4px 0 2px;
+  padding: 3px 12px;
+  background: var(--bg-hover);
+  border-radius: 999px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.rpp-view-relations .rpp-hmore:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Empty state: accent-tinted medallion instead of the grey circle. */
+.rpp-view-relations .rpp-empty-circle {
+  width: 52px;
+  height: 52px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Context file name leads with a file-type icon; the name itself keeps the
+   single-line ellipsis inside its own inner span. */
+.rpp-view-relations .rp-chrome-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rpp-view-relations .rp-chrome-file-icon {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.rpp-view-relations .rp-chrome-title-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===================== Chat chrome: conversation bar + history layer =======

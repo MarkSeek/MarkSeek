@@ -106,6 +106,7 @@ export function PanelSection({
   title,
   count,
   hint,
+  icon,
   children,
   collapsible,
   open = true,
@@ -114,6 +115,8 @@ export function PanelSection({
   title: string
   count?: number
   hint?: string
+  /** Leading glyph shown instead of the default accent bar. */
+  icon?: ReactNode
   children: ReactNode
   collapsible?: boolean
   open?: boolean
@@ -126,7 +129,11 @@ export function PanelSection({
           <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
         </span>
       )}
-      <span className="rpp-section-bar" />
+      {icon !== undefined ? (
+        <span className="rpp-section-icon">{icon}</span>
+      ) : (
+        <span className="rpp-section-bar" />
+      )}
       <span className="rpp-section-title">{title}</span>
       {count !== undefined && <span className="rpp-badge">{count}</span>}
     </div>

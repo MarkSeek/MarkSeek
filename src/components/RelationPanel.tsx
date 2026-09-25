@@ -5,6 +5,7 @@ import type { NoteRef, RelationResult } from '../utils/relations'
 import { useWikiLinkOpen } from '../hooks/useWikiLinkOpen'
 import { t } from '../i18n'
 import { formatFullTime, formatRelativeTime } from '../utils/timeFormat'
+import { fileIconName } from '../utils/fileIcon'
 import HistoryView from './HistoryView'
 import { readJsonMigrated, writeJson } from '../utils/storage'
 import { KEYS } from '../utils/storageKeys'
@@ -56,6 +57,15 @@ const SECTION_LABEL: Record<SectionId, string> = {
   tags: 'relations.tags',
   tasks: 'relations.tasks',
   history: 'relations.history',
+}
+
+/** Leading glyph of each section head; replaces the plain accent bar. */
+const SECTION_ICON: Record<SectionId, ReactNode> = {
+  backLinks: <Icon name="link" size={12} />,
+  outLinks: <Icon name="outgoing" size={12} />,
+  tags: <Icon name="tag" size={12} />,
+  tasks: <Icon name="tasks" size={12} />,
+  history: <Icon name="history" size={12} />,
 }
 
 const HIDDEN_KEY = KEYS.relationSections
@@ -369,7 +379,7 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
 
   if (!currentNote) {
     return (
-      <PanelView>
+      <PanelView className="rpp-view-relations">
         <PanelEmpty
           fill
           icon={<RelationIcon size={20} />}
@@ -505,12 +515,17 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
   const fileName = currentNote.path.split('/').pop() ?? currentNote.path
 
   return (
-    <PanelView>
+    <PanelView className="rpp-view-relations">
       {/* Same chrome bar as the chat view: context title on the left,
           actions pushed to the right edge. */}
       <div className="rp-chrome-bar">
         <span className="rp-chrome-title" title={currentNote.path}>
-          {fileName}
+          <Icon
+            name={fileIconName(currentNote.path)}
+            size={13}
+            className="rp-chrome-file-icon"
+          />
+          <span className="rp-chrome-title-text">{fileName}</span>
         </span>
         <div className="rp-chrome-menu-wrap" ref={menuRef}>
           <button
@@ -573,6 +588,7 @@ export default function RelationPanel({ currentNote }: RelationPanelProps) {
                   key={b.id}
                   title={t(SECTION_LABEL[b.id])}
                   count={counts[b.id]}
+                  icon={SECTION_ICON[b.id]}
                   collapsible
                   open={isOpen}
                   onToggle={onToggle}
