@@ -13,6 +13,14 @@ MarkSeek is an AI-native knowledge workspace built around Markdown. The UI follo
 - **CSS variables** — unified light theme system
 
 
+## AI instructions
+### Git Commit Message Convention
+- When creating Git commits, follow these rules:
+- Format
+- Use Conventional Commits:
+ - <type>(<scope>): <description>
+
+
 ## Checklist
 - All code comments must be written in English,Except for language translations, English is the default language used throughout the project.
 
