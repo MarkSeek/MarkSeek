@@ -23,10 +23,16 @@ function parseUsage(raw: unknown): AgentUsage | undefined {
 /**
  * Read a streaming Response body and invoke onEvent for each parsed event.
  * Unknown events are ignored. The function resolves when the stream ends.
+ *
+ * `options.onActivity` fires for every chunk that carried bytes. The caller
+ * uses it to re-arm its idle timeout: an agent run legitimately lasts minutes,
+ * so the deadline must be "no progress for N seconds" rather than "N seconds
+ * total" (an absolute deadline used to kill long runs mid-answer).
  */
 export async function parseAgentStream(
   response: Response,
   onEvent: (event: AgentStreamEvent) => void,
+  options: { onActivity?: () => void } = {},
 ): Promise<void> {
   if (!response.body) {
     onEvent({ type: 'error', message: 'No response body.' })
@@ -41,6 +47,7 @@ export async function parseAgentStream(
     const { done, value } = await reader.read()
     if (done) break
     if (value) bytes += value.byteLength
+    if (value) options.onActivity?.()
     buffer += decoder.decode(value, { stream: true })
 
     // Split into SSE blocks separated by a blank line.

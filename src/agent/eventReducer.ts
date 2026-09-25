@@ -41,7 +41,12 @@ export interface AgentRunState {
 export type AgentEventEffect =
   | { type: 'appendToken'; content: string }
   | { type: 'pushActivity'; activity: Partial<ToolActivity> & { id: string } }
-  | { type: 'setPendingConfirm'; request: ConfirmRequest | null }
+  /**
+   * Add a write to the confirmation queue. The model can emit several write
+   * calls in a single step, so this queues rather than replaces: dropping all
+   * but the last one used to leave the others pending forever in the history.
+   */
+  | { type: 'queuePendingConfirm'; request: ConfirmRequest }
   | { type: 'setError'; message: string }
   | { type: 'setStreaming'; streaming: boolean }
   /** Freeze the run clock: the answer is paused, not finished. */
@@ -112,7 +117,7 @@ export function handleAgentEvent(
       if (WRITE_OPS.has(ev.op)) state.mutationPaths.add(ev.path)
       return [
         {
-          type: 'setPendingConfirm',
+          type: 'queuePendingConfirm',
           request: {
             id: ev.id,
             op: ev.op,

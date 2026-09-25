@@ -282,16 +282,66 @@ describe('useAgentChat run lifecycle', () => {
       },
     ])
 
-    expect(view.result.current.pendingConfirm).toMatchObject({ id: 'c1', path: 'a.md' })
+    expect(view.result.current.pendingConfirms).toMatchObject([{ id: 'c1', path: 'a.md' }])
 
     await act(async () => {
-      view.result.current.resolveConfirm(true)
+      view.result.current.resolveConfirm('c1', true)
     })
 
-    expect(view.result.current.pendingConfirm).toBeNull()
+    expect(view.result.current.pendingConfirms).toEqual([])
     expect(stream().confirmations).toEqual([
       { id: 'c1', approved: true, op: 'write', path: 'a.md', content: 'new' },
     ])
+  })
+
+  it('queues every write of one step and resumes after the last decision', async () => {
+    // A step can emit several write calls. Holding a single slot kept only the
+    // last one, and the others stayed "pending confirmation" in the history.
+    const view = await send('hello')
+
+    await emit([
+      { type: 'confirm_required', id: 'c1', op: 'create', path: 'a.md', exists: false, preview: '', content: 'a' },
+      { type: 'confirm_required', id: 'c2', op: 'append', path: 'b.md', exists: true, preview: '', content: 'b' },
+    ])
+
+    expect(view.result.current.pendingConfirms.map((c) => c.id)).toEqual(['c1', 'c2'])
+
+    await act(async () => {
+      view.result.current.resolveConfirm('c1', true)
+    })
+
+    // Still one to answer: resuming now would send c2 back as still pending.
+    expect(view.result.current.pendingConfirms.map((c) => c.id)).toEqual(['c2'])
+    expect(streamAgentChatMock).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      view.result.current.resolveConfirm('c2', false)
+    })
+
+    expect(view.result.current.pendingConfirms).toEqual([])
+    expect(streamAgentChatMock).toHaveBeenCalledTimes(2)
+    // Both decisions travel together so the backend can settle both writes.
+    expect(stream().confirmations).toEqual([
+      { id: 'c1', approved: true, op: 'create', path: 'a.md', content: 'a' },
+      { id: 'c2', approved: false, op: 'append', path: 'b.md', content: 'b' },
+    ])
+  })
+
+  it('answers every queued write at once', async () => {
+    const view = await send('hello')
+
+    await emit([
+      { type: 'confirm_required', id: 'c1', op: 'create', path: 'a.md', exists: false, preview: '', content: 'a' },
+      { type: 'confirm_required', id: 'c2', op: 'create', path: 'b.md', exists: false, preview: '', content: 'b' },
+    ])
+
+    await act(async () => {
+      view.result.current.resolveAllConfirms(true)
+    })
+
+    expect(view.result.current.pendingConfirms).toEqual([])
+    expect(stream().confirmations).toHaveLength(2)
+    expect(stream().confirmations?.every((c) => c.approved)).toBe(true)
   })
 
   it('reports an error and stops streaming when the run fails', async () => {
@@ -315,6 +365,23 @@ describe('useAgentChat run lifecycle', () => {
     if (!signal) throw new Error('the run did not pass an abort signal')
     expect(signal.aborted).toBe(true)
     expect(view.result.current.streaming).toBe(false)
+  })
+
+  it('stops streaming when a run is aborted mid-answer', async () => {
+    // An abort is not a failure, but the run still has to settle: leaving
+    // `streaming` true froze the composer with no way back.
+    const abort = Object.assign(new Error('The operation was aborted.'), {
+      name: 'AbortError',
+    })
+    streamAgentChatMock.mockRejectedValueOnce(abort)
+    const view = renderHook(() => useAgentChat(undefined, KEY))
+
+    await act(async () => {
+      view.result.current.send('hello')
+    })
+
+    expect(view.result.current.streaming).toBe(false)
+    expect(view.result.current.error).toBeNull()
   })
 
   it('ignores a send while a run is already streaming', async () => {

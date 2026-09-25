@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '../../icons/Icon'
 import { t } from '../../../i18n'
@@ -53,6 +53,12 @@ export function Composer({
 
   const modeMenu = useAnchoredMenu()
   const modelMenu = useAnchoredMenu()
+
+  // A queued write can appear while the mode menu is still open. Close it, so
+  // the lock cannot be bypassed by a click that landed before the disable.
+  useEffect(() => {
+    if (sendBlocked) modeMenu.hide()
+  }, [sendBlocked, modeMenu.hide])
 
   const { values, set } = useSettings()
   const providers: ProviderConfig[] = Array.isArray(values.aiProviders)
@@ -216,7 +222,11 @@ export function Composer({
                   ref={modeMenu.triggerRef}
                   type="button"
                   className={`buddy-side-selector${modeMenu.open ? ' buddy-side-selector-active' : ''}`}
-                  title={t('chat.mode')}
+                  // A paused write can only be answered in the mode that asked
+                  // for it. Switching used to hide the confirmation card while
+                  // sending stayed blocked, leaving the chat deadlocked.
+                  disabled={sendBlocked}
+                  title={sendBlocked ? t('chat.modeLocked') : t('chat.mode')}
                   onClick={modeMenu.toggle}
                 >
                   <Icon name={mode === 'agent' ? 'robot' : 'mode'} size={15} />

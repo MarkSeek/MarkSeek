@@ -12,10 +12,12 @@ interface MessageListProps {
   messages: AgentChatMessage[]
   streaming: boolean
   activities: ToolActivity[]
-  /** Pre-filtered by the caller: only agent mode can pause on a write. */
-  pendingConfirm: ConfirmRequest | null
+  /** Every write the current run paused on, oldest first. */
+  pendingConfirms: ConfirmRequest[]
   error: string | null
-  onResolveConfirm: (approved: boolean) => void
+  onResolveConfirm: (id: string, approved: boolean) => void
+  /** Answer every queued write at once; used when the run paused on several. */
+  onResolveAllConfirms: (approved: boolean) => void
   /**
    * Owned by the parent because sending is an explicit intent to follow the
    * answer, and the send button lives in the composer.
@@ -35,9 +37,10 @@ export function MessageList({
   messages,
   streaming,
   activities,
-  pendingConfirm,
+  pendingConfirms,
   error,
   onResolveConfirm,
+  onResolveAllConfirms,
   stickToBottomRef,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -109,18 +112,23 @@ export function MessageList({
     messages.length,
     lastContentLength,
     activities.length,
-    pendingConfirm,
+    pendingConfirms,
     error,
     streaming,
     scrollToBottom,
     stickToBottomRef,
   ])
 
-  const resolveConfirm = (approved: boolean) => {
+  const resolveConfirm = (id: string, approved: boolean) => {
     // Deciding is an explicit intent to follow the answer: re-pin the viewport
     // even if the user had scrolled up to read earlier messages.
     stickToBottomRef.current = true
-    onResolveConfirm(approved)
+    onResolveConfirm(id, approved)
+  }
+
+  const resolveAllConfirms = (approved: boolean) => {
+    stickToBottomRef.current = true
+    onResolveAllConfirms(approved)
   }
 
   return (
@@ -151,7 +159,38 @@ export function MessageList({
           </div>
         )}
         <ActivityLog activities={activities} />
-        {pendingConfirm && <ConfirmCard request={pendingConfirm} onResolve={resolveConfirm} />}
+        {/* Several writes paused at once: one decision for all of them beats
+            answering card by card. */}
+        {pendingConfirms.length > 1 && (
+          <div className="agent-confirm-batch">
+            <span className="agent-confirm-batch-count">
+              {t('chat.confirmBatch', { n: pendingConfirms.length })}
+            </span>
+            <button
+              type="button"
+              className="agent-confirm-card-allow"
+              onClick={() => resolveAllConfirms(true)}
+            >
+              {t('chat.confirmWriteAll')}
+            </button>
+            <button
+              type="button"
+              className="agent-confirm-card-deny"
+              onClick={() => resolveAllConfirms(false)}
+            >
+              {t('chat.declineWriteAll')}
+            </button>
+          </div>
+        )}
+        {pendingConfirms.map((req, i) => (
+          <ConfirmCard
+            key={req.id}
+            request={req}
+            index={pendingConfirms.length > 1 ? i + 1 : undefined}
+            total={pendingConfirms.length > 1 ? pendingConfirms.length : undefined}
+            onResolve={(approved) => resolveConfirm(req.id, approved)}
+          />
+        ))}
         {error && (
           <div className="agent-error-card">
             <div className="agent-error-card-head">

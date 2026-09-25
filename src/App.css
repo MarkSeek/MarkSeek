@@ -4084,6 +4084,18 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
   color: var(--text-primary);
 }
 
+/* Locked while a write awaits confirmation: switching mode there would hide
+   the confirmation card and deadlock the chat. */
+.buddy-side-selector:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buddy-side-selector:disabled:hover {
+  background: var(--bg-content);
+  color: var(--text-secondary);
+}
+
 .buddy-side-selector svg:first-child {
   color: var(--text-tertiary);
 }
@@ -4418,6 +4430,38 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 .agent-confirm-card-allow:hover,
 .agent-confirm-card-deny:hover {
   filter: brightness(0.95);
+}
+
+/* Batch bar shown above several queued write confirmations */
+.agent-confirm-batch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.agent-confirm-batch-count {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.agent-confirm-batch .agent-confirm-card-allow,
+.agent-confirm-batch .agent-confirm-card-deny {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+}
+
+/* Position chip on a card that is part of a queue ("1/3") */
+.agent-confirm-card-count {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-muted, #f3f4f6);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #6b7280);
 }
 
 .agent-activity-done svg {
@@ -6062,6 +6106,7 @@ html[data-electron-platform="linux"] .rp-header {
    gutters match; vertical rhythm is owned by the parent's gap (16px). */
 .rp-content-chat .agent-activity-log,
 .rp-content-chat .agent-confirm-card,
+.rp-content-chat .agent-confirm-batch,
 .rp-content-chat .agent-error-card {
   align-self: center;
   width: var(--chat-block-width);

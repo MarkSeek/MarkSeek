@@ -243,10 +243,13 @@ function ChatPanelInner({
         messages={agent.messages}
         streaming={agent.streaming}
         activities={agent.activities}
-        // Only agent mode can pause on a write: ask mode blocks them outright.
-        pendingConfirm={mode === 'agent' ? agent.pendingConfirm : null}
+        // The queue is only ever filled in agent mode: ask mode blocks writes
+        // outright, so it can never pause on one. Rendering it unconditionally
+        // keeps the card visible if the run was started in another mode.
+        pendingConfirms={agent.pendingConfirms}
         error={agent.error}
         onResolveConfirm={agent.resolveConfirm}
+        onResolveAllConfirms={agent.resolveAllConfirms}
         stickToBottomRef={stickToBottomRef}
       />
       <Composer
@@ -259,7 +262,7 @@ function ChatPanelInner({
         onSend={handleSend}
         onStop={agent.stop}
         streaming={agent.streaming}
-        sendBlocked={!!agent.pendingConfirm}
+        sendBlocked={agent.pendingConfirms.length > 0}
       />
     </div>
   )

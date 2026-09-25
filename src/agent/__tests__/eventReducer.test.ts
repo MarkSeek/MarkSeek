@@ -68,13 +68,20 @@ describe('handleAgentEvent: tokens and activities', () => {
     })
   })
 
-  it('ignores diagnostics that have no UI representation', () => {
-    const { state, effects } = fold([
-      { type: 'info', baseURL: 'https://x', model: 'm' },
-      { type: 'log', line: 'noise' },
-    ])
+  it('ignores the provider info event, which has no UI representation', () => {
+    const { state, effects } = fold([{ type: 'info', baseURL: 'https://x', model: 'm' }])
     expect(effects).toEqual([])
     expect(state.accumulatedHistory).toEqual([])
+  })
+
+  it('renders a log line as its own activity row', () => {
+    // e.g. the search-term expansion, so the user sees what was searched.
+    const { effects } = fold([{ type: 'log', line: 'expanded terms' }])
+    expect(effects).toHaveLength(1)
+    expect(effects[0]).toMatchObject({
+      type: 'pushActivity',
+      activity: { status: 'log', result: 'expanded terms' },
+    })
   })
 })
 
@@ -158,7 +165,7 @@ describe('handleAgentEvent: confirmation', () => {
     ])
     expect(effects).toEqual([
       {
-        type: 'setPendingConfirm',
+        type: 'queuePendingConfirm',
         request: {
           id: 'c1',
           op: 'write',
@@ -170,6 +177,18 @@ describe('handleAgentEvent: confirmation', () => {
       },
       { type: 'pushActivity', activity: { id: 'c1', status: 'confirm' } },
     ])
+  })
+
+  it('queues every write of one step instead of keeping only the last', () => {
+    // The model can emit several write calls in a single step. Each one pauses
+    // the run, so dropping all but the last left the others pending forever.
+    const { effects } = fold([
+      { type: 'confirm_required', id: 'c1', op: 'create', path: 'a.md', exists: false, preview: '', content: 'a' },
+      { type: 'confirm_required', id: 'c2', op: 'append', path: 'b.md', exists: true, preview: '', content: 'b' },
+    ])
+    const queued = effects.filter((e) => e.type === 'queuePendingConfirm')
+    expect(queued).toHaveLength(2)
+    expect(queued.map((e) => (e as { request: { id: string } }).request.id)).toEqual(['c1', 'c2'])
   })
 })
 

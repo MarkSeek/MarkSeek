@@ -46,7 +46,12 @@ export interface AgentChatMessage {
 export interface AgentChatState {
   messages: AgentChatMessage[]
   activities: ToolActivity[]
-  pendingConfirm: ConfirmRequest | null
+  /**
+   * Writes awaiting the user's decision. A queue, not a single slot: the model
+   * can emit several write calls in one step and every one of them pauses the
+   * run, so holding only the last one dropped the rest.
+   */
+  pendingConfirms: ConfirmRequest[]
   streaming: boolean
   error: string | null
 }
@@ -87,7 +92,7 @@ export function useAgentChat(
   const [state, setState] = useState<AgentChatState>({
     messages: loadedMessages,
     activities: [],
-    pendingConfirm: null,
+    pendingConfirms: [],
     streaming: false,
     error: null,
   })
@@ -229,8 +234,13 @@ export function useAgentChat(
         case 'pushActivity':
           pushActivity(effect.activity)
           break
-        case 'setPendingConfirm':
-          update({ pendingConfirm: effect.request })
+        case 'queuePendingConfirm':
+          // Replace by id: a re-issued write for the same tool call is still one
+          // decision, but a second write is a second card.
+          commit((s) => {
+            const rest = s.pendingConfirms.filter((c) => c.id !== effect.request.id)
+            return { ...s, pendingConfirms: [...rest, effect.request] }
+          })
           break
         case 'setError':
           update({ error: effect.message })
@@ -298,11 +308,19 @@ export function useAgentChat(
           },
         })
       } catch (e: any) {
-        if (e?.name !== 'AbortError') {
+        const aborted = e?.name === 'AbortError'
+        if (!aborted) {
           console.error('[markseek][fe:agent] run threw:', e?.message, e?.cause ? `(cause: ${e.cause?.message || e.cause})` : '', e?.stack ? '\n' + e.stack : '')
-          // A failed run produces no usable answer, so discard its timing too.
-          runStartRef.current = 0
-          elapsedRef.current = 0
+        }
+        // A failed run produces no usable answer, so discard its timing too.
+        runStartRef.current = 0
+        elapsedRef.current = 0
+        // An abort (user stop, or the stream going idle) must still settle the
+        // run: leaving `streaming` true froze the composer forever. The reason
+        // for the abort, if any, was already published as an error event.
+        if (aborted) {
+          update({ streaming: false })
+        } else {
           update({ error: e?.message || 'Agent run failed.', streaming: false })
         }
       } finally {
@@ -332,8 +350,8 @@ export function useAgentChat(
     (text: string, mode: 'ask' | 'agent' = 'agent') => {
       const trimmed = text.trim()
       if (!trimmed || state.streaming) return
-      // Only clear the pending confirmation; keep the activity history.
-      update({ pendingConfirm: null })
+      // Only clear the pending confirmations; keep the activity history.
+      update({ pendingConfirms: [] })
       // Start timing the answer so the UI can report its duration.
       runStartRef.current = performance.now()
       elapsedRef.current = 0
@@ -342,10 +360,26 @@ export function useAgentChat(
     [run, state.streaming, update],
   )
 
-  // User decides on the pending write.
+  /**
+   * Resume the run once every queued write has a decision. Resuming after each
+   * single answer would send the remaining ones back as "Pending confirmation",
+   * which is exactly what made the model re-issue them in a loop.
+   */
+  const resumeAfterDecision = useCallback(
+    (remaining: number) => {
+      if (remaining > 0) return
+      // Resume the loop with the decisions and time this new segment: the pause
+      // spent waiting for the user is intentionally excluded from the duration.
+      runStartRef.current = performance.now()
+      void run()
+    },
+    [run],
+  )
+
+  // The user decides on one queued write.
   const resolveConfirm = useCallback(
-    (approved: boolean) => {
-      const req = state.pendingConfirm
+    (id: string, approved: boolean) => {
+      const req = state.pendingConfirms.find((c) => c.id === id)
       if (!req) return
       confirmQueueRef.current.push({
         id: req.id,
@@ -354,13 +388,31 @@ export function useAgentChat(
         path: req.path,
         content: req.content,
       })
-      update({ pendingConfirm: null })
-      // Resume the loop with the decision and time this new segment: the pause
-      // spent waiting for the user is intentionally excluded from the duration.
-      runStartRef.current = performance.now()
-      void run()
+      const remaining = state.pendingConfirms.filter((c) => c.id !== id)
+      update({ pendingConfirms: remaining })
+      resumeAfterDecision(remaining.length)
     },
-    [run, state.pendingConfirm, update],
+    [resumeAfterDecision, state.pendingConfirms, update],
+  )
+
+  // The user decides on every queued write at once.
+  const resolveAllConfirms = useCallback(
+    (approved: boolean) => {
+      const queue = state.pendingConfirms
+      if (queue.length === 0) return
+      for (const req of queue) {
+        confirmQueueRef.current.push({
+          id: req.id,
+          approved,
+          op: req.op,
+          path: req.path,
+          content: req.content,
+        })
+      }
+      update({ pendingConfirms: [] })
+      resumeAfterDecision(0)
+    },
+    [resumeAfterDecision, state.pendingConfirms, update],
   )
 
   const stop = useCallback(() => {
@@ -379,7 +431,7 @@ export function useAgentChat(
     commit({
       messages: [],
       activities: [],
-      pendingConfirm: null,
+      pendingConfirms: [],
       streaming: false,
       error: null,
     })
@@ -389,6 +441,7 @@ export function useAgentChat(
     ...state,
     send,
     resolveConfirm,
+    resolveAllConfirms,
     stop,
     reset,
   }
