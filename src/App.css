@@ -20,10 +20,9 @@
   --editor-content-min-width: 820px;
   --editor-gutter-max: 140px;
 
-  /* Inner horizontal padding of the reading column. ProseMirror keeps Crepe's
-     120px so the floating block handles (which sit ~82px left of a block) have
-     room; the diary date banner mirrors the same value so its text lines up with
-     the body text instead of sticking out 120px to the left. */
+  /* Fallback only: inside `.editor-area` this is overridden responsively as
+     `clamp(90px, 12cqw, 120px)` (see .editor-area). Kept here so any use
+     outside the editor (e.g. a plugin page) still gets Crepe's 120px. */
   --editor-content-padding-x: 120px;
 
   /* Background */
@@ -1867,6 +1866,16 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
                          would otherwise show a horizontal scrollbar */
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
+  /* Query container: cqw below resolves against THIS panel's inline size, so
+     the editor's inner gutter can shrink with the panel instead of staying at
+     Crepe's fixed 120px. */
+  container-type: inline-size;
+  /* Inner horizontal padding of the reading column: 120px on a roomy panel and
+     down to 90px on a narrow one. Floor stays above the block handles (~82px to
+     a block's left) so they never leave the column and get clipped by
+     overflow-x: hidden. The diary banner mirrors this same variable, so it
+     scales in lockstep with the body text. */
+  --editor-content-padding-x: clamp(90px, 12cqw, 120px);
 }
 
 /* ========== Plugin full-page render container ==========
@@ -2274,8 +2283,9 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
    outside Crepe's subtree, so it is not part of the markdown document.
    It shares the editor's centered reading column AND its inner horizontal
    padding: the same width formula + auto margins put the column in the same
-   place, and --editor-content-padding-x mirrors ProseMirror's 120px, so the
-   date lines up exactly with the body text (and the nav with its right edge). */
+   place, and --editor-content-padding-x mirrors ProseMirror's responsive
+   padding (clamp(90px, 12cqw, 120px) on .editor-area), so the date lines up
+   exactly with the body text (and the nav with its right edge) at any width. */
 .diary_head_title {
   flex: none;
   padding: 22px var(--editor-content-padding-x, 120px) 16px;
@@ -2371,10 +2381,10 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 
 .editor-area .milkdown .ProseMirror {
   padding-top: 24px;
-  /* Horizontal padding (Crepe default 120px) is kept on purpose: the block
-     handles float ~82px to the left of a block, so a smaller inset would push
-     them into the outer gutter (and clip on narrow panels). Exposed as a
-     variable so the diary date banner can mirror it exactly. */
+  /* Inner horizontal padding is responsive: clamp(90px, 12cqw, 120px) set on
+     .editor-area. Still kept above the block handles (~82px to a block's left)
+     so they stay inside the column instead of being clipped. Mirrored by the
+     diary banner via the same variable. */
   padding-left: var(--editor-content-padding-x, 120px);
   padding-right: var(--editor-content-padding-x, 120px);
 }
