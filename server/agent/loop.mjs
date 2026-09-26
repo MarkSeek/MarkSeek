@@ -68,7 +68,7 @@ function sendDone(res, assistantMsg, usage) {
 
 // Build the system prompt ----------------------------------------------------
 
-export function buildSystemPrompt({ treeSummary, currentNote, mode, today }) {
+export function buildSystemPrompt({ treeSummary, currentNote, mentions, mode, today }) {
   const readOnly = mode === 'ask'
   const parts = []
   if (readOnly) {
@@ -107,6 +107,15 @@ export function buildSystemPrompt({ treeSummary, currentNote, mode, today }) {
   if (currentNote && currentNote.path) {
     parts.push(
       `The user is currently viewing: ${currentNote.path}\nCurrent content:\n${currentNote.content}`,
+    )
+  }
+  if (Array.isArray(mentions) && mentions.length) {
+    const block = mentions
+      .map((m) => `### ${m.path}\n${m.content}`)
+      .join('\n\n')
+    parts.push(
+      'The user explicitly referenced these notes for this question. Read them as the primary source and answer with them in mind:\n' +
+        block,
     )
   }
   parts.push('Always cite the note paths you used. Be concise and factual.')

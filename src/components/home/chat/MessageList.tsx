@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
-import MarkdownRenderer from '../MarkdownRenderer'
 import { Icon } from '../../icons/Icon'
 import { t } from '../../../i18n'
 import type { AgentChatMessage } from '../../../agent/useAgentChat'
@@ -7,6 +6,7 @@ import type { ConfirmRequest, ToolActivity } from '../../../agent/types'
 import { MessageStats } from './MessageStats'
 import { ActivityLog } from './ActivityLog'
 import { ConfirmCard } from './ConfirmCard'
+import { MentionContent } from './MentionContent'
 
 interface MessageListProps {
   messages: AgentChatMessage[]
@@ -18,6 +18,8 @@ interface MessageListProps {
   onResolveConfirm: (id: string, approved: boolean) => void
   /** Answer every queued write at once; used when the run paused on several. */
   onResolveAllConfirms: (approved: boolean) => void
+  /** Opens a note referenced via `@[[path]]` in a message chip. */
+  onOpenNote: (path: string) => void
   /**
    * Owned by the parent because sending is an explicit intent to follow the
    * answer, and the send button lives in the composer.
@@ -41,6 +43,7 @@ export function MessageList({
   error,
   onResolveConfirm,
   onResolveAllConfirms,
+  onOpenNote,
   stickToBottomRef,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -145,7 +148,7 @@ export function MessageList({
           return (
             <div key={i} className={`buddy-side-msg buddy-side-msg-${msg.role}`}>
               <div className="buddy-side-msg-content">
-                <MarkdownRenderer content={msg.content} />
+                <MentionContent content={msg.content} onOpenNote={onOpenNote} />
                 {showStats && msg.stats && <MessageStats content={msg.content} stats={msg.stats} />}
               </div>
             </div>

@@ -6,7 +6,9 @@ import type {
   AgentMessage,
   AgentStreamEvent,
   Confirmation,
+  MentionedFile,
 } from './types'
+import { MAX_MENTIONS, MENTION_TRUNCATE } from './mentions'
 
 // Two budgets instead of one absolute deadline:
 //   connect — how long we wait for the first byte (headers + first event);
@@ -148,11 +150,14 @@ function chainAbort(external: AbortSignal, internal: AbortSignal): AbortSignal {
 /**
  * Build the lightweight context object sent with each run.
  * Reuses the existing file API so the agent always reflects the live tree.
+ * `mentionPaths` are the notes a user referenced via `@[[path]]`; their content
+ * is fetched (concurrently, deduped, capped) and injected so the model can read
+ * them directly.
  */
-export async function buildAgentContext(currentNote?: {
-  path: string
-  content: string
-}): Promise<AgentContext> {
+export async function buildAgentContext(
+  currentNote?: { path: string; content: string },
+  mentionPaths?: string[],
+): Promise<AgentContext> {
   const context: AgentContext = {}
   try {
     const tree = await fetch('/api/files/list').then((r) => r.json())
@@ -168,6 +173,36 @@ export async function buildAgentContext(currentNote?: {
           ? currentNote.content.slice(0, 6000) + '\n…[truncated]'
           : currentNote.content,
     }
+  }
+  if (mentionPaths && mentionPaths.length) {
+    const seen = new Set<string>()
+    const unique = mentionPaths.filter((p) => {
+      const k = p.trim()
+      if (!k || seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    const fetched = await Promise.all(
+      unique.slice(0, MAX_MENTIONS).map(async (p): Promise<MentionedFile | null> => {
+        try {
+          const res = await fetch(`/api/files/read?path=${encodeURIComponent(p)}`)
+          if (!res.ok) return null
+          const content = await res.text()
+          return {
+            path: p,
+            content:
+              content.length > MENTION_TRUNCATE
+                ? content.slice(0, MENTION_TRUNCATE) + '\n…[truncated]'
+                : content,
+          }
+        } catch (e) {
+          console.error('[markseek][fe:agent] mention read failed:', p, e)
+          return null
+        }
+      }),
+    )
+    const mentions = fetched.filter((m): m is MentionedFile => m !== null)
+    if (mentions.length) context.mentions = mentions
   }
   return context
 }

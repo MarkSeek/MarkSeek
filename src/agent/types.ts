@@ -67,10 +67,19 @@ export interface AgentMessageStats {
   durationMs: number
 }
 
+// A note the user explicitly referenced via `@[[path]]` in a message.
+export interface MentionedFile {
+  path: string
+  content: string
+}
+
 // Context attached to each run (file tree + current note).
 export interface AgentContext {
   treeSummary?: string
   currentNote?: { path: string; content: string }
+  // Notes referenced through `@[[path]]`; their content is injected so the
+  // model can read them directly. Optional and backwards-compatible.
+  mentions?: MentionedFile[]
 }
 
 // A user decision on a previously-paused write.

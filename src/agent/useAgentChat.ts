@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readJson, removeRaw, writeJson } from '../utils/storage'
 import { buildAgentContext, streamAgentChat } from './api'
+import { parseMentions } from './mentions'
 import { createRunState, handleAgentEvent } from './eventReducer'
 import type { AgentEventEffect } from './eventReducer'
 import type {
@@ -282,7 +283,15 @@ export function useAgentChat(
       )
       update({ streaming: true, error: null })
 
-      const context = await buildAgentContext(currentNote)
+      // Mentions come from the new user text when present; on a resumed run
+      // (no userText) re-derive them from the last user message in history so
+      // referenced notes stay available on every loop step.
+      const mentionPaths = userText
+        ? parseMentions(userText)
+        : parseMentions(
+            [...historyRef.current].reverse().find((m) => m.role === 'user')?.content ?? '',
+          )
+      const context = await buildAgentContext(currentNote, mentionPaths)
       const confirmations = confirmQueueRef.current
       confirmQueueRef.current = []
 

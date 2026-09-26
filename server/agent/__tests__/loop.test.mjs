@@ -155,6 +155,27 @@ describe('buildSystemPrompt', () => {
     )
   })
 
+  it('renders the referenced-notes block for mentions', () => {
+    const prompt = buildSystemPrompt({
+      mode: 'ask',
+      mentions: [
+        { path: 'notes/a.md', content: 'alpha' },
+        { path: 'notes/b.md', content: 'beta' },
+      ],
+    })
+    expect(prompt).toContain('explicitly referenced these notes')
+    expect(prompt).toContain('### notes/a.md')
+    expect(prompt).toContain('alpha')
+    expect(prompt).toContain('### notes/b.md')
+    expect(prompt).toContain('beta')
+  })
+
+  it('omits the mentions block when none are provided', () => {
+    expect(buildSystemPrompt({ mode: 'ask' })).not.toContain(
+      'explicitly referenced these notes',
+    )
+  })
+
   it('always ends with the citation rule', () => {
     expect(buildSystemPrompt({ mode: 'ask' }).trim().endsWith('Always cite the note paths you used. Be concise and factual.')).toBe(
       true,

@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '../../icons/Icon'
 import { t } from '../../../i18n'
 import { useSettings } from '../../../context/SettingsContext'
 import type { ProviderConfig } from '../../../config/settingsSchema'
 import { useAnchoredMenu } from './useAnchoredMenu'
+import { type MentionTarget } from '../../../agent/mentions'
+import { MentionMenu } from './MentionMenu'
 
 // Mirrors the backend's agent mode verbatim (server/agent/index.mjs) so no
 // mapping is needed when the value is sent: 'ask' runs the loop with read-only
@@ -24,6 +34,8 @@ interface ComposerProps {
   streaming: boolean
   /** While a write awaits confirmation the only valid answer is Allow/Decline. */
   sendBlocked: boolean
+  /** Flat list of mentionable Markdown notes from the vault file tree. */
+  files: MentionTarget[]
 }
 
 /** Current model key (id first, fall back to name) */
@@ -45,11 +57,129 @@ export function Composer({
   onStop,
   streaming,
   sendBlocked,
+  files,
 }: ComposerProps) {
   const [inputAreaHeight, setInputAreaHeight] = useState<number | undefined>(undefined)
   const inputAreaRef = useRef<HTMLDivElement | null>(null)
   const topAreaRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // @ mention picker state. `at` records the index of the triggering '@' so a
+  // selected note can replace the `@query` fragment precisely.
+  const [mention, setMention] = useState<{ open: boolean; query: string; at: number }>({
+    open: false,
+    query: '',
+    at: -1,
+  })
+  const [mentionActive, setMentionActive] = useState(0)
+  const mentionMenuRef = useRef<HTMLDivElement | null>(null)
+
+  // Filter the vault notes by the text typed after '@'. Empty query = none yet
+  // (show a "type to search" hint rather than echoing the whole file tree).
+  const mentionFiles = useMemo(() => {
+    const q = mention.query.trim().toLowerCase()
+    if (!q) return []
+    const list = files.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q),
+    )
+    return list.slice(0, 60)
+  }, [files, mention.query])
+
+  // Keep the highlighted row valid as the filtered list shrinks/grows.
+  useEffect(() => {
+    setMentionActive(0)
+  }, [mention.query])
+
+  const closeMention = useCallback(() => {
+    setMention({ open: false, query: '', at: -1 })
+  }, [])
+
+  // Anchor the menu just above the textarea (matches the mode/model menus).
+  const mentionAnchor = useCallback((): { left: number; bottom: number } => {
+    const el = inputRef.current
+    if (!el) return { left: 8, bottom: 8 }
+    const r = el.getBoundingClientRect()
+    return {
+      left: Math.max(8, r.left),
+      bottom: Math.max(8, window.innerHeight - r.top + 6),
+    }
+  }, [])
+
+  // Detect an active "@query" immediately before the caret; open/close the menu.
+  const detectMention = useCallback((value: string) => {
+    const el = inputRef.current
+    const caret = el?.selectionStart ?? value.length
+    let i = caret - 1
+    while (i >= 0) {
+      const ch = value[i]
+      if (ch === '\n') break
+      if (ch === '@') {
+        const prev = i > 0 ? value[i - 1] : ''
+        const query = value.slice(i + 1, caret)
+        if ((i === 0 || /\s/.test(prev)) && !/\s/.test(query)) {
+          setMention({ open: true, query, at: i })
+          return
+        }
+        break
+      }
+      if (/\s/.test(ch)) break
+      i--
+    }
+    setMention((m) => (m.open ? { open: false, query: '', at: -1 } : m))
+  }, [])
+
+  // Replace the active "@query" with a `@[[path]]` token and restore the caret.
+  const chooseMention = useCallback(
+    (path: string) => {
+      const el = inputRef.current
+      const value = input
+      const caret = el?.selectionStart ?? value.length
+      const at = mention.at >= 0 ? mention.at : caret - 1
+      const before = value.slice(0, at)
+      const after = value.slice(caret)
+      const token = `@[[${path}]] `
+      const next = before + token + after
+      onInputChange(next)
+      closeMention()
+      const pos = (before + token).length
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus()
+          el.setSelectionRange(pos, pos)
+        }
+      })
+    },
+    [input, mention.at, onInputChange, closeMention],
+  )
+
+  // The @ toolbar button inserts a bare '@' and opens the picker at the caret.
+  const insertAt = useCallback(() => {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? input.length
+    const end = el?.selectionEnd ?? input.length
+    const next = input.slice(0, start) + '@' + input.slice(end)
+    onInputChange(next)
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus()
+        el.setSelectionRange(start + 1, start + 1)
+        setMention({ open: true, query: '', at: start })
+      }
+    })
+  }, [input, onInputChange])
+
+  // Close the picker on any outside click (the textarea itself is "inside").
+  useEffect(() => {
+    if (!mention.open) return
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (inputRef.current?.contains(target)) return
+      if (mentionMenuRef.current?.contains(target)) return
+      closeMention()
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [mention.open, closeMention])
 
   const modeMenu = useAnchoredMenu()
   const modelMenu = useAnchoredMenu()
@@ -113,7 +243,30 @@ export function Composer({
     )
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (mention.open && mentionFiles.length) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionActive((i) => Math.min(mentionFiles.length - 1, i + 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionActive((i) => Math.max(0, i - 1))
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        const f = mentionFiles[mentionActive]
+        if (f) chooseMention(f.path)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closeMention()
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       onSend()
@@ -168,7 +321,7 @@ export function Composer({
               <button
                 className="buddy-side-icon-btn"
                 title={t('chat.mention')}
-                onClick={() => onInputChange(input + '@')}
+                onClick={insertAt}
               >
                 <Icon name="at" size={16} />
               </button>
@@ -205,8 +358,18 @@ export function Composer({
                 className="buddy-side-input"
                 placeholder={mode === 'agent' ? t('chat.agentPlaceholder') : t('chat.placeholder')}
                 value={input}
-                onChange={(e) => onInputChange(e.target.value)}
+                onChange={(e) => {
+                  onInputChange(e.target.value)
+                  detectMention(e.target.value)
+                }}
                 onKeyDown={handleKeyDown}
+                onKeyUp={(e) => {
+                  // Re-detect after caret moves via arrow keys / clicks.
+                  if (mention.open) detectMention(e.currentTarget.value)
+                }}
+                onClick={() => {
+                  if (mention.open) detectMention(inputRef.current?.value ?? input)
+                }}
                 rows={1}
                 disabled={streaming}
               />
@@ -380,6 +543,18 @@ export function Composer({
           </div>,
           document.body,
         )}
+
+      {mention.open && (
+        <MentionMenu
+          pos={mentionAnchor()}
+          files={mentionFiles}
+          queryActive={mention.query.trim().length > 0}
+          activeIndex={mentionActive}
+          onSelect={chooseMention}
+          onHover={setMentionActive}
+          menuRef={mentionMenuRef}
+        />
+      )}
     </>
   )
 }

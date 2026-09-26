@@ -4163,10 +4163,13 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
   min-width: 0;
   width: max-content;
   max-width: 220px;
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px;
-  border: 1px solid var(--border-color, #e6e8eb);
+  border: 1px solid var(--border, #e0d8d2);
   border-radius: 8px;
-  background: var(--bg-surface, #ffffff);
+  background: var(--bg-elevated, #ffffff);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
   z-index: 2000;
   display: flex;
@@ -4192,7 +4195,7 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 }
 
 .buddy-side-mode-item:hover {
-  background: var(--bg-muted, #eef0f2);
+  background: var(--bg-hover, #ebe6e2);
 }
 
 .buddy-side-mode-item svg:first-child {
@@ -4218,6 +4221,117 @@ html[data-electron-platform="linux"] .editor-tabs-bar.with-window-controls {
 .buddy-side-mode-item:focus,
 .buddy-side-mode-item:focus-visible {
   outline: none;
+}
+
+/* ===== @ mention picker ===== */
+.buddy-side-mention-menu {
+  max-width: 280px;
+  /* Scrolling lives in .buddy-side-mention-scroll so the header stays put. */
+  max-height: none;
+  overflow: visible;
+}
+
+.buddy-side-mention-scroll {
+  max-height: calc(50vh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* theme-aware scrollbar for the floating menus */
+.buddy-side-mode-menu,
+.buddy-side-mention-menu,
+.buddy-side-mention-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border, #e0d8d2) transparent;
+}
+.buddy-side-mode-menu::-webkit-scrollbar,
+.buddy-side-mention-menu::-webkit-scrollbar,
+.buddy-side-mention-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.buddy-side-mode-menu::-webkit-scrollbar-thumb,
+.buddy-side-mention-menu::-webkit-scrollbar-thumb,
+.buddy-side-mention-scroll::-webkit-scrollbar-thumb {
+  background: var(--border, #e0d8d2);
+  border-radius: 4px;
+}
+.buddy-side-mode-menu::-webkit-scrollbar-thumb:hover,
+.buddy-side-mention-menu::-webkit-scrollbar-thumb:hover,
+.buddy-side-mention-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #6b7280);
+}
+.buddy-side-mode-menu::-webkit-scrollbar-track,
+.buddy-side-mention-menu::-webkit-scrollbar-track,
+.buddy-side-mention-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.buddy-side-mention-head {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary, #6b7280);
+  border-bottom: 1px solid var(--border, #e0d8d2);
+  margin-bottom: 2px;
+}
+
+.buddy-side-mention-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.buddy-side-mention-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.buddy-side-mention-name {
+  font-size: 13px;
+  color: var(--text-primary, #1f2937);
+}
+
+.buddy-side-mention-path {
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.buddy-side-mode-item.buddy-side-mode-item-active .buddy-side-mention-name {
+  color: var(--accent, #06b6d4);
+}
+
+/* ===== Inline mention chip inside a message ===== */
+.buddy-mention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  margin: 0 2px;
+  border: 1px solid color-mix(in srgb, var(--accent, #06b6d4) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #06b6d4) 12%, transparent);
+  color: var(--accent, #06b6d4);
+  font: inherit;
+  font-size: 0.92em;
+  line-height: 1.4;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.buddy-mention-chip:hover {
+  background: color-mix(in srgb, var(--accent, #06b6d4) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #06b6d4) 55%, transparent);
+}
+
+.buddy-mention-chip svg {
+  flex: none;
 }
 
 /* ===== Per-answer statistics row: copy button + tokens + duration ===== */

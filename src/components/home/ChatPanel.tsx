@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../icons/Icon'
 import { t } from '../../i18n'
 import { useAgentChat } from '../../agent/useAgentChat'
 import { useWorkspace } from '../../context/WorkspaceContext'
+import { flattenMarkdownFiles } from '../../agent/mentions'
 import {
   migrateLegacy,
   getActiveId,
@@ -177,6 +178,11 @@ function ChatPanelInner({
   const stickToBottomRef = useRef(true)
 
   const workspace = useWorkspace()
+  // Flat list of mentionable Markdown notes, derived from the live file tree.
+  const mentionFiles = useMemo(
+    () => flattenMarkdownFiles(workspace.fileTree),
+    [workspace.fileTree],
+  )
 
   // When the agent mutates notes, refresh any open tabs and the file tree so the
   // calendar / diary / editor views reflect the new content immediately.
@@ -250,6 +256,7 @@ function ChatPanelInner({
         error={agent.error}
         onResolveConfirm={agent.resolveConfirm}
         onResolveAllConfirms={agent.resolveAllConfirms}
+        onOpenNote={workspace.openFile}
         stickToBottomRef={stickToBottomRef}
       />
       <Composer
@@ -263,6 +270,7 @@ function ChatPanelInner({
         onStop={agent.stop}
         streaming={agent.streaming}
         sendBlocked={agent.pendingConfirms.length > 0}
+        files={mentionFiles}
       />
     </div>
   )
