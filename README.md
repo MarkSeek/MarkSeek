@@ -4,6 +4,10 @@
 
 > 🌐 Also available in [简体中文](README.zh-CN.md).
 
+
+Looking for a native, dependency-light build? **[MarkSeek-R](https://github.com/MarkSeek/MarkSeek-R)** is an AI-native WYSIWYG markdown editor with block-based editing, written in pure Rust on [iced](https://github.com/iced-rs/iced) 0.14 (advanced + svg + image features) and [cosmic-text](https://github.com/pop-os/cosmic-text).
+
+
 ## Preface · A Note From the Author
 
 I am not a frontend or backend engineer, and I have no experience with HTML, TypeScript, or CSS. This application — from its very first line of code to packaging and release — was built **entirely with AI**.
@@ -22,6 +26,8 @@ If you also want a knowledge space that understands you and belongs to you, I ho
 MarkSeek is an AI-native knowledge workspace built around Markdown. Capture ideas, keep a daily journal, connect notes with wiki links, and let an AI agent read, search, and — with your approval — edit your personal knowledge base.
 
 More than a note-taking app, MarkSeek turns isolated Markdown files into a living, queryable knowledge network. Every note becomes part of a larger context, so AI can understand, reason, and act on your behalf.
+
+
 
 <p align="center">
   <img src="screenshots/editor-readme-split.png" alt="MarkSeek — three-panel workspace with the Markdown editor" width="720" />
